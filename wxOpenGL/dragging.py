@@ -1,21 +1,18 @@
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 
-from ...geometry import point as _point
+from .geometry import point as _point
 
 
 if TYPE_CHECKING:
-    from ...objects.objects3d import housing as _housing
-    from ...objects.objects3d import cavity as _cavity
-    from ...objects.objects3d.mixins import angle as _arrow_angle
-    from ...objects.objects3d.mixins import move as _arrow_move
-    from ..canvas import canvas as _canvas
+    from . import canvas as _canvas
+    from .objects import base3d as _base3d
 
 
 class DragObject:
 
-    def __init__(self, owner: Union["_housing.Housing", "_cavity.Cavity"],
-                 obj: Union["_arrow_angle.ArrowRing", "_arrow_move.ArrowMove"],
+    def __init__(self, owner: "_base3d.Base3D",
+                 obj: "_base3d.Base3D",
                  anchor_screen: _point.Point, pick_offset: _point.Point,
                  mouse_start: _point.Point, start_obj_pos: _point.Point,
                  last_pos: _point.Point):

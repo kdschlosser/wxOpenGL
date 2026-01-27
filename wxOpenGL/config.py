@@ -1,6 +1,7 @@
 
 import wx
 import sqlite3
+import weakref
 
 
 class _ConfigTable:
@@ -125,10 +126,32 @@ class _ConfigDB:
 class _Config(type):
     __db__ = _ConfigDB()
     __classes__ = []
+    __callbacks__ = {}
 
     def __init__(cls, name, bases, dct):
         super().__init__(name, bases, dct)
         _Config.__classes__.append(cls)
+        _Config.__callbacks__[cls] = {}
+
+    def bind(cls, callback, setting_name):
+        if setting_name not in _Config.__callbacks__[cls]:
+            _Config.__callbacks__[cls][setting_name] = []
+
+        for ref in _Config.__callbacks__[cls][setting_name][:]:
+            cb = ref()
+            if cb is None:
+                _Config.__callbacks__[cls][setting_name].remove(cb)
+            elif callback == cb:
+                break
+        else:
+            ref = weakref.WeakMethod(weakref, cls._remove_ref)
+            _Config.__callbacks__[cls][setting_name].append(ref)
+
+    def _remove_ref(cls, ref):
+        for refs in _Config.__callbacks__[cls].values():
+            if ref in refs:
+                refs.remove(ref)
+                return
 
     def _save(cls):
         for key in dir(cls):
@@ -140,6 +163,15 @@ class _Config(type):
                 continue
 
             cls.__table__[key] = value
+
+    def _process_change(cls, setting_name):
+        if setting_name in _Config.__callbacks__[cls]:
+            for ref in _Config.__callbacks__[cls][setting_name][:]:
+                cb = ref()
+                if cb is None:
+                    _Config.__callbacks__[cls][setting_name].remove(ref)
+                else:
+                    cb(cls, setting_name)
 
     @property
     def __table_name__(cls):
@@ -177,6 +209,7 @@ class _Config(type):
 
         if not key.startswith('_'):
             cls.__table__[key] = value
+            cls._process_change(key)
 
     def __delitem__(cls, key):
         delattr(cls, key)
@@ -225,9 +258,6 @@ class Config(metaclass=_Config):
 
         odd_color = [0.3, 0.3, 0.3, 0.4]
         even_color = [0.8, 0.8, 0.8, 0.4]
-
-    class modeling(metaclass=_Config):
-        smooth = False
 
     class virtual_canvas(metaclass=_Config):
         width = 0

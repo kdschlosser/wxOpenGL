@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wxOpenGL"
+version = "0.1.0"
+description = "OpenGL with wxPython UI framework"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+keywords = ["sample", "setuptools", "development"]
+authors = [{ name = "Kevin G. Schlosser" }]
+maintainers = [{ name = "Kevin G. Schlosser" }]
+classifiers = [
+  "Development Status :: 4 - Beta",
+
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Build Tools",
+
+  "License :: OSI Approved :: MIT License",
+
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3 :: Only",
+]
+
+dependencies = [
+    "PyOpenGL>=3.1.10",
+    "PyOpenGL-accelerate>=3.1.10",
+    "cadquery-ocp==7.8.1.1",
+    "ifcopenshell==0.8.4.post1",
+    "lib3mf==2.4.1.post1",
+    "meshio==5.3.5",
+    "numpy==2.2.6",
+    "pyfqmr==0.5.0",
+    "scipy==1.17.0",
+    "wxPython==4.2.4"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/kdschlosser/wxOpenGL"
+"Bug Reports" = "https://github.com/kdschlosser/wxOpenGL/issues"
+"Source" = "https://github.com/kdschlosser/wxOpenGL"
+
+# This is configuration specific to the `setuptools` build backend.
+# If you are using a different build backend, you will need to change this.
+# [tool.setuptools]
+# If there are data files included in your packages that need to be
+# installed, specify them here.
+# package-data = { "sample" = ["*.dat"] }

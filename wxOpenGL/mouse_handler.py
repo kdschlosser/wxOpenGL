@@ -106,12 +106,12 @@ class MouseHandler:
 
     def _process_mouse(self, code):
         for config, func in (
-            (Config.walk, self.canvas.walk),
-            (Config.truck_pedistal, self.canvas.truck_pedistal),
-            (Config.reset, self.canvas.camera.reset),
-            (Config.rotate, self.canvas.rotate),
-            (Config.pan_tilt, self.canvas.pan_tilt),
-            (Config.zoom, self.canvas.zoom)
+            (Config.walk, self.canvas.Walk),
+            (Config.truck_pedistal, self.canvas.TruckPedistal),
+            (Config.reset, self.canvas.camera.Reset),
+            (Config.rotate, self.canvas.Rotate),
+            (Config.pan_tilt, self.canvas.PanTilt),
+            (Config.zoom, self.canvas.Zoom)
         ):
             if config.mouse is None:
                 continue
@@ -137,7 +137,7 @@ class MouseHandler:
         self.mouse_pos = mouse_pos
         self.is_motion = False
 
-        selected = _object_picker.find_object(mouse_pos, self.canvas.objects)
+        selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
         if selected:
             event = GLObjectEvent(wxEVT_GL_OBJECT_SELECTED)
@@ -152,7 +152,7 @@ class MouseHandler:
 
             with self.canvas:
                 if self._drag_obj is not None:
-                    self._drag_obj.owner.is_selected = False
+                    self._drag_obj.owner.set_selected(False)
 
                 # prepare exact drag using project/unproject anchor approach
                 if not self.canvas.HasCapture():
@@ -161,34 +161,32 @@ class MouseHandler:
                 # compute object's center world point from its hit_test_rect
 
                 if selected == self.canvas.selected:
-                    if selected.is_move_shown:
-                        selected.stop_move()
-                        self._drag_obj = None
-                    elif selected.is_angle_shown:
-                        self._free_rot = _free_rotate.FreeRotate(
-                            self.canvas, self.canvas.selected, x, y)
-                    else:
-                        selected.is_selected = False
-                        self.canvas.selected = None
+                    # if selected.is_move_shown:
+                    #     selected.stop_move()
+                    #     self._drag_obj = None
+                    # elif selected.is_angle_shown:
+                    #     self._free_rot = _free_rotate.FreeRotate(self.canvas, self.canvas.selected, x, y)
+                    # else:
+                    selected.set_selected(False)
+                    self.canvas.selected = None
                 else:
                     self._free_rot = None
 
                     # project center to screen
-                    win_point = self.canvas.camera.project_point(selected.position)
+                    win_point = self.canvas.camera.ProjectPoint(selected.position)
 
                     # compute pick-world and offsets
-                    pick_world = self.canvas.camera.unproject_point(win_point)
-                    obj = selected.get_parent_object()
-                    pick_offset = obj.position - pick_world
+                    pick_world = self.canvas.camera.UnprojectPoint(win_point)
+                    pick_offset = selected.position - pick_world
 
-                    selected.is_selected = True
+                    selected.set_selected(True)
 
                     # store drag state on canvas
                     self._drag_obj = _dragging.DragObject(
-                        obj, selected, anchor_screen=win_point,
+                        selected, selected, anchor_screen=win_point,
                         pick_offset=pick_offset, mouse_start=mouse_pos,
-                        start_obj_pos=obj.position.copy(),
-                        last_pos=obj.position.copy())
+                        start_obj_pos=selected.position.copy(),
+                        last_pos=selected.position.copy())
 
                 self.canvas.Refresh(True)
 
@@ -200,7 +198,7 @@ class MouseHandler:
             self._free_rot = None
 
             if self._drag_obj is not None:
-                self._drag_obj.obj.is_selected = False
+                self._drag_obj.obj.set_selected(False)
                 self._drag_obj = None
 
                 if self.canvas.HasCapture():
@@ -348,11 +346,12 @@ class MouseHandler:
             with self.canvas:
                 if evt.LeftIsDown():
                     if self._drag_obj is not None:
-                        if self._drag_obj.owner.is_move_shown:
-                            self._drag_obj.move(self, new_mouse_pos)
-
-                        elif self._drag_obj.owner.is_angle_shown:
-                            self._drag_obj.rotate(self, new_mouse_pos)
+                        # if self._drag_obj.owner.is_move_shown:
+                        #     self._drag_obj.move(self, new_mouse_pos)
+                        #
+                        # elif self._drag_obj.owner.is_angle_shown:
+                        #     self._drag_obj.rotate(self, new_mouse_pos)
+                        pass
 
                     elif self._free_rot is not None:
                         self._free_rot(x, y)

@@ -5,8 +5,23 @@ from . import config as _config
 from . import canvas as _canvas
 from . import mouse_handler as _mouse_handler
 from .geometry import point as _point
+from . import gl_materials as _gl_materials
+
 
 Config = _config.Config
+
+GenericMaterial = _gl_materials.GenericMaterial
+PlasticMaterial = _gl_materials.PlasticMaterial
+BlackPlasticMaterial = _gl_materials.BlackPlasticMaterial
+CyanPlasticMaterial = _gl_materials.CyanPlasticMaterial
+GreenPlasticMaterial = _gl_materials.GreenPlasticMaterial
+RedPlasticMaterial = _gl_materials.RedPlasticMaterial
+WhitePlasticMaterial = _gl_materials.WhitePlasticMaterial
+YellowPlasticMaterial = _gl_materials.YellowPlasticMaterial
+RubberMaterial = _gl_materials.RubberMaterial
+MetallicMaterial = _gl_materials.MetallicMaterial
+PolishedMaterial = _gl_materials.PolishedMaterial
+
 
 CONFIG_MOUSE_NONE = _config.MOUSE_NONE
 CONFIG_MOUSE_LEFT = _config.MOUSE_LEFT
@@ -60,7 +75,7 @@ class Canvas(wx.Panel):
 
     def __init__(self, parent):
         wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
-        view_size = _canvas.Canvas.get_view_size()
+        view_size = _canvas.Canvas.GetViewSize()
 
         self._panel = wx.Panel(self, wx.ID_ANY)
         vsizer = wx.BoxSizer(wx.VERTICAL)

@@ -1,0 +1,23 @@
+from typing import TYPE_CHECKING
+
+from . import base3d as _base3d
+import numpy as np
+
+
+if TYPE_CHECKING:
+    from ..geometry import angle as _angle
+    from ..geometry import point as _point
+    from .. import Canvas as _Canvas
+    from .. import gl_materials as _glm
+
+
+class MeshGENERIC(_base3d.Base3D):
+
+    def __init__(self, canvas: "_Canvas", material: "_glm.GLMaterial",
+                 selected_material: "_glm.GLMaterial", smooth: bool,
+                 vertices: np.ndarray, faces: np.ndarray,
+                 position: _point.Point | None = None,
+                 angle: _angle.Angle | None = None):
+
+        _base3d.Base3D.__init__(self, canvas, material, selected_material,
+                                smooth, [[vertices, faces]], position, angle)

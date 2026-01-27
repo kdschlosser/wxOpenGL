@@ -88,7 +88,7 @@ class Canvas(glcanvas.GLCanvas):
 
         self.Bind(wx.EVT_SIZE, self._on_size)
         self.Bind(wx.EVT_PAINT, self._on_paint)
-        self.Bind(wx.EVT_ERASE_BACKGROUND, self.on_erase_background)
+        self.Bind(wx.EVT_ERASE_BACKGROUND, self._on_erase_background)
 
         self._selected = None
         self._objects = []
@@ -186,7 +186,7 @@ class Canvas(glcanvas.GLCanvas):
 
     def Walk(self, dx, dy) -> None:
         if dy == 0.0:
-            self.pan_tilt(dx * 6.0, 0.0)
+            self.PanTilt(dx * 6.0, 0.0)
             return
 
         look_dx = dx
@@ -202,7 +202,7 @@ class Canvas(glcanvas.GLCanvas):
         dy *= sens
 
         self.camera.Walk(dx, dy, Config.walk.speed)
-        self.pan_tilt(look_dx * 2.0, 0.0)
+        self.PanTilt(look_dx * 2.0, 0.0)
 
     def PanTilt(self, dx, dy) -> None:
         if Config.pan_tilt.mouse & MOUSE_REVERSE_X_AXIS:
@@ -463,9 +463,8 @@ class Canvas(glcanvas.GLCanvas):
             GL.glMatrixMode(GL.GL_MODELVIEW)
             GL.glLoadIdentity()
 
-            self.camera.Set()
-
             GL.glPushMatrix()
+            self.camera.Set()
 
             objs = self.camera.GetObjectsInView(self._objects)
 
@@ -474,10 +473,9 @@ class Canvas(glcanvas.GLCanvas):
                     renderer()
 
             self.DrawGrid()
-
             # self._render_bounding_boxes()
             GL.glPopMatrix()
 
             self.SwapBuffers()
 
-            evt.Skip()
+            # evt.Skip()

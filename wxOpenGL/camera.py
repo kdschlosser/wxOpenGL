@@ -228,7 +228,7 @@ class Camera:
         self._position.bind(self._update_camera)
         self._eye.bind(self._update_camera)
 
-    def _reset(self):
+    def Reset(self):
         with self._position and self._eye:
             self._position.x = 0.0
             self._position.y = Config.eye_height
@@ -454,7 +454,7 @@ class Camera:
         self._right = right
         self._forward = forward_ground
 
-        self._focal_distance = _line.Line(self.eye, self.position).length()
+        self._focal_distance = _line.Line(self._eye, self._position).length()
 
     def _update_views(self):
         if not self._is_dirty:
