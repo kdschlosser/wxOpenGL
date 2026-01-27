@@ -225,7 +225,7 @@ class MouseHandler:
     def on_left_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
-        selected = _object_picker.find_object(mouse_pos, self.canvas.objects)
+        selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
         if selected:
             event = GLObjectEvent(wxEVT_GL_OBJECT_ACTIVATED)
@@ -241,7 +241,7 @@ class MouseHandler:
         if not self.is_motion:
             x, y = evt.GetPosition()
             mouse_pos = _point.Point(x, y)
-            selected = _object_picker.find_object(mouse_pos, self.canvas.objects)
+            selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
             if selected:
                 event = GLObjectEvent(wxEVT_GL_OBJECT_MIDDLE_CLICK)
@@ -267,7 +267,7 @@ class MouseHandler:
     def on_middle_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
-        selected = _object_picker.find_object(mouse_pos, self.canvas.objects)
+        selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
         if selected:
             event = GLObjectEvent(wxEVT_GL_OBJECT_MIDDLE_DCLICK)
@@ -284,7 +284,7 @@ class MouseHandler:
             x, y = evt.GetPosition()
             mouse_pos = _point.Point(x, y)
 
-            selected = _object_picker.find_object(mouse_pos, self.canvas.objects)
+            selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
             if selected:
                 event = GLObjectEvent(wxEVT_GL_OBJECT_RIGHT_CLICK)
@@ -310,7 +310,7 @@ class MouseHandler:
     def on_right_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
-        selected = _object_picker.find_object(mouse_pos, self.canvas.objects)
+        selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
         if selected:
             event = GLObjectEvent(wxEVT_GL_OBJECT_RIGHT_DCLICK)
@@ -392,7 +392,7 @@ class MouseHandler:
         if not self.is_motion:
             x, y = evt.GetPosition()
             mouse_pos = _point.Point(x, y)
-            selected = _object_picker.find_object(mouse_pos, self.canvas.objects)
+            selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
             if selected:
                 event = GLObjectEvent(wxEVT_GL_OBJECT_AUX1_CLICK)
@@ -418,7 +418,7 @@ class MouseHandler:
     def on_aux1_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
-        selected = _object_picker.find_object(mouse_pos, self.canvas.objects)
+        selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
         if selected:
             event = GLObjectEvent(wxEVT_GL_OBJECT_AUX1_DCLICK)
@@ -434,7 +434,7 @@ class MouseHandler:
         if not self.is_motion:
             x, y = evt.GetPosition()
             mouse_pos = _point.Point(x, y)
-            selected = _object_picker.find_object(mouse_pos, self.canvas.objects)
+            selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
             if selected:
                 event = GLObjectEvent(wxEVT_GL_OBJECT_AUX2_CLICK)
@@ -460,7 +460,7 @@ class MouseHandler:
     def on_aux2_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
-        selected = _object_picker.find_object(mouse_pos, self.canvas.objects)
+        selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
         if selected:
             event = GLObjectEvent(wxEVT_GL_OBJECT_AUX2_DCLICK)
