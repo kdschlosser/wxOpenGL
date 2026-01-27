@@ -165,67 +165,50 @@ def _ray_triangle_intersect(orig, dir, v0, v1, v2, eps=1e-9):  # NOQA
     return False, None
 
 
-def _aabb_screen_bbox_and_depth(aabb_min, aabb_max, mv, pj,
+def _aabb_screen_bbox_and_depth(bboxes, mv, pj,
                                 viewport, flip_y_for_ui=True):
     """
     Build a 2D screen bbox from projecting ALL 8 AABB corners.
     This is necessary for stability across camera yaw/pitch.
     """
+    for corners in bboxes:
+        screen_pts = []
+        depths = []
+        any_in_front = False
 
-    mn = np.array(aabb_min.as_float, dtype=np.float64)
-    mx = np.array(aabb_max.as_float, dtype=np.float64)
+        for c in corners:
+            proj = _project_point_world(c, mv, pj, viewport)
+            if proj is None:
+                continue
 
-    corners = np.array(
-        [
-            [mn[0], mn[1], mn[2]],
-            [mn[0], mn[1], mx[2]],
-            [mn[0], mx[1], mn[2]],
-            [mn[0], mx[1], mx[2]],
-            [mx[0], mn[1], mn[2]],
-            [mx[0], mn[1], mx[2]],
-            [mx[0], mx[1], mn[2]],
-            [mx[0], mx[1], mx[2]],
-        ],
-        dtype=np.float64
-    )
+            wx, wy, wz, eye_coords = proj
+            if flip_y_for_ui:
+                wy = viewport[3] - wy
 
-    screen_pts = []
-    depths = []
-    any_in_front = False
+            screen_pts.append((wx, wy, wz))
 
-    for c in corners:
-        proj = _project_point_world(c, mv, pj, viewport)
-        if proj is None:
+            eye_z = eye_coords[2]
+            if eye_z < 0:
+                any_in_front = True
+                depths.append(-eye_z)
+            else:
+                depths.append(inf)
+
+        if not screen_pts:
             continue
 
-        wx, wy, wz, eye_coords = proj
-        if flip_y_for_ui:
-            wy = viewport[3] - wy
+        xs = [p[0] for p in screen_pts]
+        ys = [p[1] for p in screen_pts]
 
-        screen_pts.append((wx, wy, wz))
+        bbox2d = (min(xs), min(ys), max(xs), max(ys))
 
-        eye_z = eye_coords[2]
-        if eye_z < 0:
-            any_in_front = True
-            depths.append(-eye_z)
+        # depth metric: closest in-front corner if possible
+        if any_in_front:
+            depth_metric = float(min(d for d in depths if d != inf))
         else:
-            depths.append(inf)
+            depth_metric = float(min(depths))
 
-    if not screen_pts:
-        return None
-
-    xs = [p[0] for p in screen_pts]
-    ys = [p[1] for p in screen_pts]
-
-    bbox2d = (min(xs), min(ys), max(xs), max(ys))
-
-    # depth metric: closest in-front corner if possible
-    if any_in_front:
-        depth_metric = float(min(d for d in depths if d != inf))
-    else:
-        depth_metric = float(min(depths))
-
-    return bbox2d, depth_metric
+        yield bbox2d, depth_metric
 
 
 def _get_obj_rotation_matrix_3x3(obj) -> np.ndarray | None:
@@ -309,20 +292,16 @@ def _pick_candidates_at_mouse(mx, my, scene_objects, mv=None, pj=None, viewport=
 
     candidates = []
     for obj in scene_objects:
-        res = _aabb_screen_bbox_and_depth(obj.hit_test_rect[0][0], obj.hit_test_rect[0][1],
-                                          mv, pj, viewport, flip_y_for_ui=True)
-
-        if res is None:
-            continue
-
-        (minx, miny, maxx, maxy), depth = res
-
-        if (
-            minx - tol_pixels <= mx_screen <= maxx + tol_pixels and
-            miny - tol_pixels <= my_screen <= maxy + tol_pixels
+        for (minx, miny, maxx, maxy), depth in (
+            _aabb_screen_bbox_and_depth(obj.bb, mv, pj, viewport, flip_y_for_ui=True)
         ):
 
-            candidates.append((depth, obj))
+            if (
+                minx - tol_pixels <= mx_screen <= maxx + tol_pixels and
+                miny - tol_pixels <= my_screen <= maxy + tol_pixels
+            ):
+
+                candidates.append((depth, obj))
 
     candidates.sort(key=lambda k: k[0])
 
@@ -330,7 +309,7 @@ def _pick_candidates_at_mouse(mx, my, scene_objects, mv=None, pj=None, viewport=
 
 
 def find_object(mouse_pos, scene_objects):
-    mx, my = mouse_pos.as_float[:-1]
+    mx, my = list(mouse_pos)[:-1]
 
     mv, pj, vp = _gl_get_matrices()
     move_thresh = 4.0
@@ -363,12 +342,11 @@ def find_object(mouse_pos, scene_objects):
 
     for _, obj in cands:
         # world AABB
-        wmin = obj.hit_test_rect[0][0].as_float
-        wmax = obj.hit_test_rect[0][1].as_float
+        for wmin, wmax in obj.rect:
 
-        hit, t_hit = _ray_intersect_aabb(o, d, wmin, wmax)
-        if hit and t_hit < best_t:
-            best_t = t_hit
-            best_obj = obj
+            hit, t_hit = _ray_intersect_aabb(o, d, tuple(wmin), tuple(wmax))
+            if hit and t_hit < best_t:
+                best_t = t_hit
+                best_obj = obj
 
     return best_obj
