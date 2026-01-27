@@ -188,12 +188,12 @@ class KeyHandler:
             remove_from_queue(self._process_pan_tilt_key, key)
             return
 
-        truck_pedistal = Config.truck_pedistal
-        key = _process_key_event(keycode, truck_pedistal.up_key,
-                                 truck_pedistal.down_key, truck_pedistal.left_key,
-                                 truck_pedistal.right_key)
+        truck_pedestal = Config.truck_pedestal
+        key = _process_key_event(keycode, truck_pedestal.up_key,
+                                 truck_pedestal.down_key, truck_pedestal.left_key,
+                                 truck_pedestal.right_key)
         if key is not None:
-            remove_from_queue(self._process_truck_pedistal_key, key)
+            remove_from_queue(self._process_truck_pedestal_key, key)
             return
 
         walk = Config.walk
@@ -236,12 +236,12 @@ class KeyHandler:
             add_to_queue(self._process_pan_tilt_key, key)
             return
 
-        truck_pedistal = Config.truck_pedistal
-        key = _process_key_event(keycode, truck_pedistal.up_key,
-                                 truck_pedistal.down_key, truck_pedistal.left_key,
-                                 truck_pedistal.right_key)
+        truck_pedestal = Config.truck_pedestal
+        key = _process_key_event(keycode, truck_pedestal.up_key,
+                                 truck_pedestal.down_key, truck_pedestal.left_key,
+                                 truck_pedestal.right_key)
         if key is not None:
-            add_to_queue(self._process_truck_pedistal_key, key)
+            add_to_queue(self._process_truck_pedestal_key, key)
             return
 
         walk = Config.walk
@@ -294,21 +294,21 @@ class KeyHandler:
 
         self.canvas.PanTilt(dx * factor, dy * factor)
 
-    def _process_truck_pedistal_key(self, factor, *keys):
+    def _process_truck_pedestal_key(self, factor, *keys):
         dx = 0.0
         dy = 0.0
 
         for key in keys:
-            if key == Config.truck_pedistal.up_key:
+            if key == Config.truck_pedestal.up_key:
                 dy -= 3.0
-            elif key == Config.truck_pedistal.down_key:
+            elif key == Config.truck_pedestal.down_key:
                 dy += 3.0
-            elif key == Config.truck_pedistal.left_key:
+            elif key == Config.truck_pedestal.left_key:
                 dx -= 3.0
-            elif key == Config.truck_pedistal.right_key:
+            elif key == Config.truck_pedestal.right_key:
                 dx += 3.0
 
-        self.canvas.TruckPedistal(dx * factor, dy * factor)
+        self.canvas.TruckPedestal(dx * factor, dy * factor)
 
     def _process_walk_key(self, factor, *keys):
         dx = 0.0

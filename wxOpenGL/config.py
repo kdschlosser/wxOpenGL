@@ -291,7 +291,7 @@ class Config(metaclass=_Config):
         right_key = ord(';')
         sensitivity = 0.2
 
-    class truck_pedistal(metaclass=_Config):
+    class truck_pedestal(metaclass=_Config):
         mouse = MOUSE_RIGHT
         up_key = ord('8')
         down_key = ord('2')

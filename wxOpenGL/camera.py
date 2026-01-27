@@ -610,10 +610,10 @@ class Camera:
             self._eye += move
             self._position += move
 
-    def TruckPedistal(self, dx, dy, speed):
+    def TruckPedestal(self, dx, dy, speed):
         """
         this is as the function name states. It is a Truck (left right)
-        and a Pedistal (up down) movement
+        and a Pedestal (up down) movement
         """
 
         # Build desired move from input

@@ -107,7 +107,7 @@ class MouseHandler:
     def _process_mouse(self, code):
         for config, func in (
             (Config.walk, self.canvas.Walk),
-            (Config.truck_pedistal, self.canvas.TruckPedistal),
+            (Config.truck_pedestal, self.canvas.TruckPedestal),
             (Config.reset, self.canvas.camera.Reset),
             (Config.rotate, self.canvas.Rotate),
             (Config.pan_tilt, self.canvas.PanTilt),

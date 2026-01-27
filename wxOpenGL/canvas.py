@@ -155,18 +155,18 @@ class Canvas(glcanvas.GLCanvas):
 
         glcanvas.GLCanvas.Refresh(self, *args, **kwargs)
 
-    def TruckPedistal(self, dx: float, dy: float) -> None:
-        if Config.truck_pedistal.mouse & MOUSE_REVERSE_X_AXIS:
+    def TruckPedestal(self, dx: float, dy: float) -> None:
+        if Config.truck_pedestal.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
 
-        if Config.truck_pedistal.mouse & MOUSE_REVERSE_Y_AXIS:
+        if Config.truck_pedestal.mouse & MOUSE_REVERSE_Y_AXIS:
             dy = -dy
 
-        sens = Config.truck_pedistal.sensitivity
+        sens = Config.truck_pedestal.sensitivity
         dx *= sens
         dy *= sens
 
-        self.camera.TruckPedistal(dx, dy, Config.truck_pedistal.speed)
+        self.camera.TruckPedestal(dx, dy, Config.truck_pedestal.speed)
 
     def Zoom(self, dx: float, _):
         dx *= Config.zoom.sensitivity

@@ -115,13 +115,13 @@ class Canvas(wx.Panel):
         self._canvas.Refresh(self, *args, **kwargs)
 
     def Truck(self, delta) -> None:
-        self._canvas.TruckPedistal(delta, 0.0)
+        self._canvas.TruckPedestal(delta, 0.0)
 
-    def Pedistal(self, delta) -> None:
-        self._canvas.TruckPedistal(0.0, delta)
+    def Pedestal(self, delta) -> None:
+        self._canvas.TruckPedestal(0.0, delta)
 
-    def TruckPedistal(self, truck_delta, pedistal_delta) -> None:
-        self._canvas.TruckPedistal(truck_delta, pedistal_delta)
+    def TruckPedestal(self, truck_delta, pedestal_delta) -> None:
+        self._canvas.TruckPedestal(truck_delta, pedestal_delta)
 
     def Zoom(self, delta):
         self._canvas.Zoom(delta, None)
