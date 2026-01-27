@@ -5,7 +5,6 @@ from OpenGL import GL
 
 from ..geometry import point as _point
 from ..geometry import angle as _angle
-from ..wrappers.decimal import Decimal as _decimal
 from .. import config as _config
 from .. import gl_materials as _glm
 from .. import model_loaders as _model_loaders
@@ -342,8 +341,8 @@ class Base3D:
         col_min = verts.min(axis=0)  # shape (3,) -> array([-0.7,  0.3, -1. ])
         col_max = verts.max(axis=0)  # shape (3,) -> array([1.2, 3.1, 4. ])
 
-        p1 = _point.Point(*[_decimal(item) for item in col_min])
-        p2 = _point.Point(*[_decimal(item) for item in col_max])
+        p1 = _point.Point(*col_min)
+        p2 = _point.Point(*col_max)
 
         return p1, p2
 

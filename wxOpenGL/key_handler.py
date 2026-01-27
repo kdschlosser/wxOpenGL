@@ -4,9 +4,6 @@ import threading
 from . import canvas as _canvas
 from . import config as _config
 
-from .wrappers.decimal import Decimal as _decimal
-
-
 Config = _config.Config
 
 

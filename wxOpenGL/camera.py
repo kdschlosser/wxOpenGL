@@ -215,6 +215,7 @@ class Camera:
         self._frustum_planes = None
 
         self._position = _point.Point(0.0, Config.eye_height, 0.0)
+
         self._eye = _point.Point(0.0, Config.eye_height + 0.5, 75.0)
 
         self._angle = _angle.Angle.from_points(self._position, self._eye)
@@ -257,7 +258,7 @@ class Camera:
         aabb_in_frustum_planes = self._aabb_in_frustum_planes
         res = [
             [_line.Line(self._eye, obj.position).length(), obj] for obj in objs
-            if any(aabb_in_frustum_planes(tuple(mn), tuple(mx), planes)
+            if any(aabb_in_frustum_planes(mn.as_float, mx.as_float, planes)
                    for mn, mx in obj.rect)]
 
         # sort the objects by distance from the camera
@@ -356,14 +357,14 @@ class Camera:
 
             corners = np.array(
                 [
-                    [mn.x, mn.y, mn.z, 1.0],
-                    [mn.x, mn.y, mx.z, 1.0],
-                    [mn.x, mx.y, mn.z, 1.0],
-                    [mn.x, mx.y, mx.z, 1.0],
-                    [mx.x, mn.y, mn.z, 1.0],
-                    [mx.x, mn.y, mx.z, 1.0],
-                    [mx.x, mx.y, mn.z, 1.0],
-                    [mx.x, mx.y, mx.z, 1.0],
+                    [float(mn.x), float(mn.y), float(mn.z), 1.0],
+                    [float(mn.x), float(mn.y), float(mx.z), 1.0],
+                    [float(mn.x), float(mx.y), float(mn.z), 1.0],
+                    [float(mn.x), float(mx.y), float(mx.z), 1.0],
+                    [float(mx.x), float(mn.y), float(mn.z), 1.0],
+                    [float(mx.x), float(mn.y), float(mx.z), 1.0],
+                    [float(mx.x), float(mx.y), float(mn.z), 1.0],
+                    [float(mx.x), float(mx.y), float(mx.z), 1.0],
                 ], dtype=dtype
             )  # (8,4)
 
@@ -398,7 +399,7 @@ class Camera:
 
     def Set(self):
         self._calculate_camera()
-        camera = list(self._eye) + list(self._position) + self._up.tolist()
+        camera = self._eye.as_float + self._position.as_float + tuple(self._up.tolist())
         GLU.gluLookAt(*camera)
         self._update_views()
 
@@ -543,7 +544,7 @@ class Camera:
 
         new_point = p2 + final_offset
 
-        return _point.Point(*new_point)
+        return _point.Point(new_point[0], new_point[1], new_point[2])
 
     def PanTilt(self, dx, dy):
         """
@@ -660,7 +661,7 @@ class Camera:
             # convert top-left y back to OpenGL bottom-left y
             winy = self._viewport[3] - point.y
 
-            x, y, z = GLU.gluUnProject(point.x, float(winy), point.z,
+            x, y, z = GLU.gluUnProject(point.x, winy, point.z,
                                        self._modelview, self._projection, self._viewport)
 
         return _point.Point(x, y, z)

@@ -309,7 +309,7 @@ def _pick_candidates_at_mouse(mx, my, scene_objects, mv=None, pj=None, viewport=
 
 
 def find_object(mouse_pos, scene_objects):
-    mx, my = list(mouse_pos)[:-1]
+    mx, my = mouse_pos.as_float[:-1]
 
     mv, pj, vp = _gl_get_matrices()
     move_thresh = 4.0
@@ -344,7 +344,7 @@ def find_object(mouse_pos, scene_objects):
         # world AABB
         for wmin, wmax in obj.rect:
 
-            hit, t_hit = _ray_intersect_aabb(o, d, tuple(wmin), tuple(wmax))
+            hit, t_hit = _ray_intersect_aabb(o, d, wmin.as_float, wmax.as_float)
             if hit and t_hit < best_t:
                 best_t = t_hit
                 best_obj = obj

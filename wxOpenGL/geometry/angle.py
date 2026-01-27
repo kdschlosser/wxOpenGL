@@ -1,94 +1,60 @@
-from typing import Self, Callable, Iterable, Union
 
+from typing import Self, Callable, Iterable, Union
 import weakref
 import math
 import numpy as np
 from scipy.spatial.transform import Rotation as _Rotation
 
-from ..wrappers.decimal import Decimal as _decimal
 from . import point as _point
 
 
 class Angle:
-    """
-    Makes is easier to set angles.
-
-    This class defines several "dunder" (double underscore) methods or "magic"
-    methods that allow for using math operators to perform rotation tasks.
-
-    numpy arrays are able to be used on it and instances of thos class are
-    able to be used on numpy arrays. Instances of this class are also able to be
-    applied to an instance of the `wxOpenGL.geometry.point.Point` class as well.
-
-    This class only deals with angles as X, Y, Z and only in degrees. it is also
-    written to have the coordinate system done as
-
-    -X: left
-    +X: right
-    -Y: down
-    +Y: up
-    -Z: near
-    +Z: far
-    """
 
     def __array_ufunc__(self, func, method, inputs, instance, **kwargs):
-        """
-        Private method for working with numpy arrays
-        """
         if func == np.matmul:
             if isinstance(instance, np.ndarray):
-                if instance.shape == (1, 3):
-                    angle = self.from_euler(*instance.tolist())
-                elif instance.shape == (1, 4):
-                    angle = self.from_quat(instance)
-                elif instance.shape == (3, 3):
-                    angle = self.from_matrix(instance)
-                else:
-                    raise ValueError('array has an incorrect shape')
+                arr = np.array(self.as_float, dtype=np.float64)
+                arr @= instance
+                x, y, z = arr
 
-                angle = self @ angle
-                self._R = angle._R  # NOQA
+                self._x = x
+                self._y = y
+                self._z = z
+
                 self._process_update()
                 return self
             else:
-                return inputs @ self._R.as_matrix().T  # NOQA
+                return inputs @ self._R.as_matrix().T
 
         if func == np.add:
-            if isinstance(instance, np.ndarray):
-                if instance.shape == (1, 3):
-                    angle = self.from_euler(*instance.tolist())
-                elif instance.shape == (1, 4):
-                    angle = self.from_quat(instance)
-                elif instance.shape == (3, 3):
-                    angle = self.from_matrix(instance)
-                else:
-                    raise ValueError('array has an incorrect shape')
+            arr = np.array(self.as_float, dtype=np.float64)
 
-                angle = self + angle
-                self._R = angle._R  # NOQA
+            if isinstance(instance, np.ndarray):
+                arr = np.array(self.as_float, dtype=np.float64)
+                arr += instance
+                x, y, z = arr
+                self._x = x
+                self._y = y
+                self._z = z
+
                 self._process_update()
                 return self
             else:
-                arr = self.as_euler_array
                 return inputs + arr
 
         if func == np.subtract:
-            if isinstance(instance, np.ndarray):
-                if instance.shape == (1, 3):
-                    angle = self.from_euler(*instance.tolist())
-                elif instance.shape == (1, 4):
-                    angle = self.from_quat(instance)
-                elif instance.shape == (3, 3):
-                    angle = self.from_matrix(instance)
-                else:
-                    raise ValueError('array has an incorrect shape')
+            arr = np.array(self.as_float, dtype=np.float64)
 
-                angle = self - angle
-                self._R = angle._R  # NOQA
+            if isinstance(instance, np.ndarray):
+                arr -= instance
+                x, y, z = arr
+                self._x = x
+                self._y = y
+                self._z = z
+
                 self._process_update()
                 return self
             else:
-                arr = self.as_euler_array
                 return inputs + arr
 
         print('func:', func)
@@ -101,15 +67,10 @@ class Angle:
         print()
         print('kwargs:', kwargs)
         print()
-        raise RuntimeError('Please report this error to '
-                           '`https://github.com/kdschlosser/wxOpenGL/issues`')
+
+        raise RuntimeError
 
     def __init__(self, R=None):
-        """
-        Internal use. please use the
-        `Angle.from_quat`, `Angle.from_points`, `Angle.from_euler` or
-        `Angle.from_matrix`
-        """
 
         if R is None:
             R = _Rotation.from_quat([0.0, 0.0, 0.0, 1.0])  # NOQA
@@ -127,38 +88,21 @@ class Angle:
         self._ref_count -= 1
 
     def __remove_callback(self, ref):
-        """
-        Internal use
-
-        :param ref: weakref.rf instance
-        :return:
-        """
         try:
             self.__callbacks.remove(ref)
         except:  # NOQA
             pass
 
-    def bind(self, cb: Callable[["Angle"], None]):
-        """
-        Bind a callback method to be called if the angle changes.
-
-        ..note: Only methods can be supplied, There is no support for functions.
-
-        :param cb: callback
-        """
+    def bind(self, cb: Callable[["Angle"], None]) -> bool:
         # We don't explicitly check to see if a callback is already registered.
         # What we care about is if a callback is called only one time and that
         # check is done when the callbacks are being executed. If there happens
         # to be a duplicate, the duplicate is then removed at that point in time.
         ref = weakref.WeakMethod(cb, self.__remove_callback)
         self.__callbacks.append(ref)
+        return True
 
     def unbind(self, cb: Callable[["Angle"], None]) -> None:
-        """
-        Unbind a callback method.
-
-        :param cb: Callback method that was bound.
-        """
         for ref in self.__callbacks[:]:
             callback = ref()
             if callback is None:
@@ -172,9 +116,6 @@ class Angle:
                 self.__callbacks.remove(ref)
 
     def _process_update(self):
-        """
-        Internal use.
-        """
         if self._ref_count:
             return
 
@@ -187,20 +128,11 @@ class Angle:
 
     @property
     def inverse(self) -> "Angle":
-        """
-        Get the inverse of the angle.
-
-        :rtype: `Angle`
-        """
-
         R = self._R.inv()
         return Angle(R)
 
     @classmethod
-    def _quat_to_euler(cls, quat: np.ndarray) -> tuple[_decimal, _decimal, _decimal]:
-        """
-        Internal use.
-        """
+    def _quat_to_euler(cls, quat: np.ndarray) -> tuple[float, float, float]:
         c = quat[0]
         d = quat[1]
         e = quat[2]
@@ -225,10 +157,8 @@ class Angle:
         return cls._matrix_to_euler(matrix)
 
     @staticmethod
-    def _matrix_to_euler(matrix: np.ndarray) -> tuple[_decimal, _decimal, _decimal]:
-        """
-        Internal use.
-        """
+    def _matrix_to_euler(matrix: np.ndarray) -> tuple[float, float, float]:
+
         def clamp(a_, b_, c_):
             return max(b_, min(c_, a_))
 
@@ -250,19 +180,16 @@ class Angle:
             x = math.atan2(n, k)
             z = 0
 
-        return (_decimal(math.degrees(x)), _decimal(math.degrees(y)),
-                _decimal(math.degrees(z)))
+        return math.degrees(x), math.degrees(y), math.degrees(z)
 
     @staticmethod
-    def _euler_to_quat(x: _decimal, y: _decimal, z: _decimal) -> np.ndarray:
-        """
-        Internal use.
-        """
-        x = _decimal(math.radians(float(x)))
-        y = _decimal(math.radians(float(y)))
-        z = _decimal(math.radians(float(z)))
+    def _euler_to_quat(x: float, y: float, z: float) -> np.ndarray:
 
-        d2 = _decimal(2.0)
+        x = math.radians(x)
+        y = math.radians(y)
+        z = math.radians(z)
+
+        d2 = 2.0
         x_half = x / d2
         y_half = y / d2
         z_half = z / d2
@@ -279,32 +206,21 @@ class Angle:
         z = c * d * h + f * g * e
         w = c * d * e - f * g * h
 
-        quat = np.array([float(x), float(y), float(z), float(w)], dtype=np.float32)
+        quat = np.array([x, y, z, w], dtype=np.float32)
         return quat
 
     @property
     def x(self) -> float:
-        """
-        Get the X euler angle in degrees.
-
-        :rtype: float
-        """
         quat = self._R.as_quat()
         angles = self._quat_to_euler(quat)
-        return float(angles[0])
+        return angles[0]
 
     @x.setter
     def x(self, value: float):
-        """
-        Set the X euler angle in degrees.
-
-        :param value: X euler angle in degrees
-        :type value: float
-        """
-
         quat = self._R.as_quat()
         angles = list(self._quat_to_euler(quat))
-        angles[0] = _decimal(value)
+        angles[0] = value
+
         quat = self._euler_to_quat(*angles)
 
         self._R = _Rotation.from_quat(quat)  # NOQA
@@ -312,26 +228,15 @@ class Angle:
 
     @property
     def y(self) -> float:
-        """
-        Get the Y euler angle in degrees.
-
-        :rtype: float
-        """
         quat = self._R.as_quat()
         angles = self._quat_to_euler(quat)
-        return float(angles[1])
+        return angles[1]
 
     @y.setter
     def y(self, value: float):
-        """
-        Set the Y euler angle in degrees.
-
-        :param value: Y euler angle in degrees
-        :type value: float
-        """
         quat = self._R.as_quat()
         angles = list(self._quat_to_euler(quat))
-        angles[1] = _decimal(value)
+        angles[1] = value
 
         quat = self._euler_to_quat(*angles)
 
@@ -340,26 +245,15 @@ class Angle:
 
     @property
     def z(self) -> float:
-        """
-        Get the Z euler angle in degrees.
-
-        :rtype: float
-        """
         quat = self._R.as_quat()
         angles = self._quat_to_euler(quat)
-        return float(angles[2])
+        return angles[2]
 
     @z.setter
     def z(self, value: float):
-        """
-        Set the Z euler angle in degrees.
-
-        :param value: Z euler angle in degrees
-        :type value: float
-        """
         quat = self._R.as_quat()
         angles = list(self._quat_to_euler(quat))
-        angles[2] = _decimal(value)
+        angles[2] = value
 
         quat = self._euler_to_quat(*angles)
 
@@ -369,134 +263,65 @@ class Angle:
     def copy(self) -> "Angle":
         return Angle.from_quat(self._R.as_quat())
 
-    def __convert_other_to_quat(self, other):
-        """
-        Internal use.
-        """
-
+    def __iadd__(self, other: Union["Angle", np.ndarray]) -> Self:
         if isinstance(other, Angle):
-            quat = other.as_quat
+            x, y, z = other
         else:
-            if isinstance(other, (list, tuple)):
-                t_other = np.array(other, dtype=np.float64)
-            elif isinstance(other, np.ndarray):
-                t_other = other
-            else:
-                raise TypeError(f'type {type(other)} not supported')
+            x, y, z = (float(item) for item in other)
 
-            if t_other.shape() == (1, 3):
-                quat = self._euler_to_quat(*(_decimal(item) for item in other.tolist()))
-            elif t_other.shape() == (1, 4):
-                quat = other
-            elif t_other.shape() == (3, 3):
-                quat = self._euler_to_quat(*self._matrix_to_euler(t_other))
-            else:
-                raise ValueError('incorrect shape for array')
+        tx, ty, tz = self
 
-        return quat
+        tx += x
+        ty += y
+        tz += z
 
-    def __iadd__(self, other: Union["Angle", np.ndarray, tuple, list]) -> Self:
-        """
-        Left hand addition.
-
-        angle.Angle += other
-
-        :param other: Amount to add to angle. <br/>
-
-                      Allowed types:
-
-                      * `angle.Angle` instance.
-                      * numpy array, list or tuple of 3 floats `[x, y, z]` that are euler angles in degrees.
-                      * numpy array, list or tuple of 4 floats `[x, y, z, w]` that is a quaternion.
-                      * numpy array, list or tuple that has the shape of 3, 3 that is a rotation matrix.
-
-
-        :type other: `Angle`, `np.ndarray`, `list` or `tuple`
-        :return: self
-        :rtype: self
-        """
-
-        new = self + other
-        self._R = new._R  # NOQA
-
+        quat = self._euler_to_quat(tx, ty, tz)
+        self._R = _Rotation.from_quat(quat)  # NOQA
         self._process_update()
         return self
 
-    def __add__(self, other: Union["Angle", np.ndarray, tuple, list]) -> "Angle":
-        """
-        Addition.
+    def __add__(self, other: Union["Angle", np.ndarray]) -> "Angle":
+        if isinstance(other, Angle):
+            x, y, z = other
+        else:
+            x, y, z = (float(item) for item in other)
 
-        new_angle = angle.Angle + other
+        tx, ty, tz = self
 
-        :param other: Amount to add to angle. <br/>
-
-                      Allowed types:
-
-                        * `angle.Angle` instance.
-                        * numpy array, list or tuple of 3 floats `[x, y, z]` that are euler angles in degrees.
-                        * numpy array, list or tuple of 4 floats `[x, y, z, w]` that is a quaternion.
-                        * numpy array, list or tuple that has the shape of 3, 3 that is a rotation matrix.
-
-        :type other: `Angle`, `np.ndarray`, `list` or `tuple`
-        :return: new Angle instance
-        :rtype: `Angle`
-        """
-
-        quat = self.__convert_other_to_quat(other)
-        o_quat = self.as_quat
-        o_quat += quat
-
+        tx += x
+        ty += y
+        tz += z
+        quat = self._euler_to_quat(tx, ty, tz)
         return self.from_quat(quat)
 
-    def __isub__(self, other: Union["Angle", np.ndarray, tuple, list]) -> Self:
-        """
-        Left hand subtraction.
+    def __isub__(self, other: Union["Angle", np.ndarray]) -> Self:
+        if isinstance(other, Angle):
+            x, y, z = other
+        else:
+            x, y, z = (float(item) for item in other)
 
-        angle.Angle -= other
+        tx, ty, tz = self
 
-        :param other: Amount to subtract from angle. <br/>
-
-                      Allowed types:
-
-                      * `angle.Angle` instance.
-                      * numpy array, list or tuple of 3 floats `[x, y, z]` that are euler angles in degrees.
-                      * numpy array, list or tuple of 4 floats `[x, y, z, w]` that is a quaternion.
-                      * numpy array, list or tuple that has the shape of 3, 3 that is a rotation matrix.
-
-
-        :type other: `Angle`, `np.ndarray`, `list` or `tuple`
-        :return: self
-        :rtype: self
-        """
-        new = self - other
-        self._R = new._R  # NOQA
-
+        tx -= x
+        ty -= y
+        tz -= z
+        quat = self._euler_to_quat(tx, ty, tz)
+        self._R = _Rotation.from_quat(quat)  # NOQA
         self._process_update()
         return self
 
-    def __sub__(self, other: Union["Angle", np.ndarray, tuple, list]) -> "Angle":
-        """
-        Subtraction.
+    def __sub__(self, other: Union["Angle", np.ndarray]) -> "Angle":
+        if isinstance(other, Angle):
+            x, y, z = other
+        else:
+            x, y, z = (float(item) for item in other)
 
-        new_angle = angle.Angle - other
+        tx, ty, tz = self
 
-        :param other: Amount to subtract from angle. <br/>
-
-                      Allowed types:
-
-                        * `angle.Angle` instance.
-                        * numpy array, list or tuple of 3 floats `[x, y, z]` that are euler angles in degrees.
-                        * numpy array, list or tuple of 4 floats `[x, y, z, w]` that is a quaternion.
-                        * numpy array, list or tuple that has the shape of 3, 3 that is a rotation matrix.
-
-        :type other: `Angle`, `np.ndarray`, `list` or `tuple`
-        :return: new Angle instance
-        :rtype: `Angle`
-        """
-        quat = self.__convert_other_to_quat(other)
-        o_quat = self.as_quat
-        o_quat -= quat
-
+        tx -= x
+        ty -= y
+        tz -= z
+        quat = self._euler_to_quat(tx, ty, tz)
         return self.from_quat(quat)
 
     def __rmatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
@@ -505,9 +330,9 @@ class Angle:
         elif isinstance(other, _point.Point):
             values = other.as_numpy @ self._R.as_matrix().T
 
-            x = _decimal(float(values[0]))
-            y = _decimal(float(values[1]))
-            z = _decimal(float(values[2]))
+            x = float(values[0])
+            y = float(values[1])
+            z = float(values[2])
             quat = self._euler_to_quat(x, y, z)
             other._R = _Rotation.from_quat(quat)  # NOQA
             other._process_update()  # NOQA
@@ -521,15 +346,15 @@ class Angle:
 
         return other
 
-    def __imatmul__(self, other: Union["Angle", np.ndarray, _point.Point]) -> np.ndarray | Self:
+    def __imatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
         if isinstance(other, np.ndarray):
             other @= self._R.as_matrix().T
         elif isinstance(other, _point.Point):
             values = other.as_numpy @ self._R.as_matrix().T
 
-            x = _decimal(float(values[0]))
-            y = _decimal(float(values[1]))
-            z = _decimal(float(values[2]))
+            x = float(values[0])
+            y = float(values[1])
+            z = float(values[2])
 
             with other:
                 other.x = x
@@ -548,31 +373,14 @@ class Angle:
 
         return other
 
-    def __imul__(self, other):
-        new = self * other
-        self._R = new._R
-        self._process_update()
-        return self
-
-    def __mul__(self, other):
-
-        quat = self.__convert_other_to_quat(other)
-        angle = self.from_quat(quat)
-
-        return Angle(self._R * angle._R)  # NOQA
-
-    def __matmul__(self, other: Union[_point.Point, np.ndarray]) -> np.ndarray:
-        """
-        Apply rotation.
-        """
-
+    def __matmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray:
         if isinstance(other, np.ndarray):
             other = other @ self._R.as_matrix().T
         elif isinstance(other, _point.Point):
             values = other.as_numpy @ self._R.as_matrix().T
-            x = _decimal(float(values[0]))
-            y = _decimal(float(values[1]))
-            z = _decimal(float(values[2]))
+            x = float(values[0])
+            y = float(values[1])
+            z = float(values[2])
 
             other = _point.Point(x, y, z)
         elif isinstance(other, Angle):
@@ -585,11 +393,11 @@ class Angle:
         return other
 
     def __bool__(self):
-        return tuple(self) == (0, 0, 0)
+        return self.as_float == (0, 0, 0)
 
     def __eq__(self, other: "Angle") -> bool:
-        x1, y1, z1 = self.as_decimal
-        x2, y2, z2 = other.as_decimal
+        x1, y1, z1 = self
+        x2, y2, z2 = other
 
         return x1 == x2 and y1 == y2 and z1 == z2
 
@@ -597,19 +405,15 @@ class Angle:
         return not self.__eq__(other)
 
     @property
-    def as_euler_array(self) -> np.ndarray:
-        return np.array(list(self), dtype=np.float64)
-
-    @property
-    def as_decimal(self) -> tuple[float, float, float]:
+    def as_float(self) -> tuple[float, float, float]:
         quat = self._R.as_quat()
         x, y, z = self._quat_to_euler(quat)
 
-        return float(x), float(y), float(z)
+        return x, y, z
 
     @property
     def as_int(self) -> tuple[int, int, int]:
-        x, y, z = self
+        x, y, z = self.as_float
         return int(x), int(y), int(z)
 
     @property
@@ -618,13 +422,13 @@ class Angle:
 
     @property
     def as_matrix(self) -> np.ndarray:
-        return self._R.as_matrix().T  # NOQA
+        return self._R.as_matrix().T
 
-    def __iter__(self) -> Iterable[_decimal]:
+    def __iter__(self) -> Iterable[float]:
         quat = self._R.as_quat()
         x, y, z = self._quat_to_euler(quat)
 
-        return iter([float(x), float(y), float(z)])
+        return iter([x, y, z])
 
     def __str__(self) -> str:
         quat = self._R.as_quat()
@@ -637,9 +441,7 @@ class Angle:
         return cls(R)
 
     @classmethod
-    def from_euler(cls, x: float | _decimal, y: float | _decimal,
-                   z: float | _decimal) -> "Angle":
-
+    def from_euler(cls, x: float, y: float, z: float) -> "Angle":
         quat = cls._euler_to_quat(x, y, z)
         R = _Rotation.from_quat(quat)  # NOQA
         ret = cls(R)
@@ -647,13 +449,11 @@ class Angle:
 
     @classmethod
     def from_quat(cls, q: list[float, float, float, float] | np.ndarray) -> "Angle":
-
         R = _Rotation.from_quat(q)  # NOQA
         return cls(R)
 
     @classmethod
-    def from_points(cls, p1: _point.Point, p2: _point.Point) -> "Angle":  # NOQA
-
+    def from_points(cls, p1: _point.Point, p2: _point.Point) -> "Angle":
         # the sign for all of the verticies in the array needs to be flipped in
         # order to handle the -Z axis being near
         p1 = -p1.as_numpy
@@ -669,6 +469,7 @@ class Angle:
 
         local_forward = np.array([0.0, 0.0, -1.0],
                                  dtype=np.dtypes.Float64DType)
+
         nz = np.nonzero(local_forward)[0][0]
         sign = np.sign(local_forward[nz])
         forward_world = f * sign
@@ -688,10 +489,9 @@ class Angle:
 
         rn = np.linalg.norm(right)
         if rn < 1e-6:
-            right = np.array([1.0, 0.0, 0.0])
-            # raise RuntimeError("degenerate right vector")
-        else:
-            right = right / rn
+            raise RuntimeError("degenerate right vector")
+
+        right = right / rn
 
         true_up = np.cross(forward_world, right)  # NOQA
 

@@ -283,6 +283,7 @@ class MouseHandler:
         if not self.is_motion:
             x, y = evt.GetPosition()
             mouse_pos = _point.Point(x, y)
+
             selected = _object_picker.find_object(mouse_pos, self.canvas.objects)
 
             if selected:

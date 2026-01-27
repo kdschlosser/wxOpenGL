@@ -86,6 +86,8 @@ class Canvas(glcanvas.GLCanvas):
         self.context = _context.GLContext(self)
         self.camera = _camera.Camera(self)
 
+        self.size = None
+
         self.Bind(wx.EVT_SIZE, self._on_size)
         self.Bind(wx.EVT_PAINT, self._on_paint)
         self.Bind(wx.EVT_ERASE_BACKGROUND, self._on_erase_background)
@@ -153,7 +155,7 @@ class Canvas(glcanvas.GLCanvas):
 
         glcanvas.GLCanvas.Refresh(self, *args, **kwargs)
 
-    def TruckPedistal(self, dx, dy) -> None:
+    def TruckPedistal(self, dx: float, dy: float) -> None:
         if Config.truck_pedistal.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
 
@@ -166,12 +168,11 @@ class Canvas(glcanvas.GLCanvas):
 
         self.camera.TruckPedistal(dx, dy, Config.truck_pedistal.speed)
 
-    def Zoom(self, dx, _):
+    def Zoom(self, dx: float, _):
         dx *= Config.zoom.sensitivity
         self.camera.Zoom(dx)
 
-    def Rotate(self, dx, dy) -> None:
-
+    def Rotate(self, dx: float, dy: float) -> None:
         if Config.rotate.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
 
@@ -184,7 +185,7 @@ class Canvas(glcanvas.GLCanvas):
 
         self.camera.Rotate(dx, dy)
 
-    def Walk(self, dx, dy) -> None:
+    def Walk(self, dx: float, dy: float) -> None:
         if dy == 0.0:
             self.PanTilt(dx * 6.0, 0.0)
             return
@@ -204,7 +205,7 @@ class Canvas(glcanvas.GLCanvas):
         self.camera.Walk(dx, dy, Config.walk.speed)
         self.PanTilt(look_dx * 2.0, 0.0)
 
-    def PanTilt(self, dx, dy) -> None:
+    def PanTilt(self, dx: float, dy: float) -> None:
         if Config.pan_tilt.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
 
@@ -225,17 +226,19 @@ class Canvas(glcanvas.GLCanvas):
         event.Skip()
 
     def DoSetViewport(self, size):
-        width, height = size * self.GetContentScaleFactor()
+        width, height = self.size = size * self.GetContentScaleFactor()
         with self.context:
             GL.glViewport(0, 0, width, height)
 
-    def _on_paint(self, evt):
+    def _on_paint(self, _):
+        _ = wx.PaintDC(self)
+
         with self.context:
             if not self._init:
                 self.InitGL()
                 self._init = True
 
-            self.OnDraw(evt)
+            self.OnDraw()
 
     @staticmethod
     def _normalize(v: np.ndarray) -> np.ndarray:
@@ -243,8 +246,6 @@ class Canvas(glcanvas.GLCanvas):
         return v if n == 0.0 else v / n
 
     def InitGL(self):
-        _ = wx.PaintDC(self)
-
         GL.glClearColor(0.20, 0.20, 0.20, 0.0)
         # GL.glViewport(0, 0, w, h)
 
@@ -448,10 +449,8 @@ class Canvas(glcanvas.GLCanvas):
                 GL.glVertex3f(x2, y2, z2)
                 GL.glEnd()
 
-    def OnDraw(self, evt):
+    def OnDraw(self):
         with self.context:
-            _ = wx.PaintDC(self)
-
             w, h = self.GetSize()
             aspect = w / float(h)
 
@@ -463,8 +462,9 @@ class Canvas(glcanvas.GLCanvas):
             GL.glMatrixMode(GL.GL_MODELVIEW)
             GL.glLoadIdentity()
 
-            GL.glPushMatrix()
             self.camera.Set()
+
+            GL.glPushMatrix()
 
             objs = self.camera.GetObjectsInView(self._objects)
 
@@ -477,5 +477,3 @@ class Canvas(glcanvas.GLCanvas):
             GL.glPopMatrix()
 
             self.SwapBuffers()
-
-            # evt.Skip()

@@ -5,7 +5,7 @@ import wxOpenGL
 class Frame(wx.Frame):
 
     def __init__(self):
-        wx.Frame.__init__(self, None, wx.ID_ANY, size=(800, 600))
+        wx.Frame.__init__(self, None, wx.ID_ANY, size=(1600, 900))
         self.canvas = wxOpenGL.Canvas(self)
 
         vsizer = wx.BoxSizer(wx.VERTICAL)

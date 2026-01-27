@@ -260,8 +260,8 @@ class Config(metaclass=_Config):
         even_color = [0.8, 0.8, 0.8, 0.4]
 
     class virtual_canvas(metaclass=_Config):
-        width = 0
-        height = 0
+        width = 1920
+        height = 1080
 
     class movement(metaclass=_Config):
         angle_detent = 10.0
