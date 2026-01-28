@@ -64,17 +64,6 @@ class Line:
             else:
                 return inputs + self.as_numpy
 
-        print('func:', func)
-        print()
-        print('method:', method)
-        print()
-        print('inputs:', inputs)
-        print()
-        print('instance:', instance)
-        print()
-        print('kwargs:', kwargs)
-        print()
-
         raise RuntimeError
 
     def __init__(self, p1: _point.Point,

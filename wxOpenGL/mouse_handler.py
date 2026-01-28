@@ -143,20 +143,7 @@ class MouseHandler:
         if selected:
             with self.canvas:
                 if self.canvas.selected == selected:
-                    # project center to screen
-                    win_point = self.canvas.camera.ProjectPoint(selected.position)
-
-                    # compute pick-world and offsets
-                    pick_world = self.canvas.camera.UnprojectPoint(win_point)
-                    pick_offset = selected.position - pick_world
-
-                    # store drag state on canvas
-                    self._drag_obj = _dragging.DragObject(
-                        self.canvas, selected, anchor_screen=win_point,
-                        pick_offset=pick_offset, mouse_start=mouse_pos,
-                        start_obj_pos=selected.position.copy(),
-                        last_pos=selected.position.copy())
-
+                    self._drag_obj = _dragging.DragObject(self.canvas, selected)
                     refresh = True
 
         if not self.canvas.HasCapture():
@@ -409,7 +396,7 @@ class MouseHandler:
                     if self._drag_obj is None:
                         self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
                     else:
-                        self._drag_obj(mouse_pos)
+                        self._drag_obj(delta)
 
                     refresh = True
 

@@ -51,17 +51,6 @@ class Point:
             else:
                 return inputs + arr
 
-        print('func:', func)
-        print()
-        print('method:', method)
-        print()
-        print('inputs:', inputs)
-        print()
-        print('instance:', instance)
-        print()
-        print('kwargs:', kwargs)
-        print()
-
         raise RuntimeError
 
     def __init__(self, x: float, y: float, z: float | None = None):

@@ -11,28 +11,14 @@ if TYPE_CHECKING:
 
 class DragObject:
 
-    def __init__(self, canvas: "_canvas.Canvas", selected: "_base3d.Base3D",
-                 anchor_screen: _point.Point, pick_offset: _point.Point,
-                 mouse_start: _point.Point, start_obj_pos: _point.Point,
-                 last_pos: _point.Point):
+    def __init__(self, canvas: "_canvas.Canvas", selected: "_base3d.Base3D"):
 
         self.canvas = canvas
         self.selected = selected
 
-        # (winx, winy, winz)
-        self.anchor_screen = anchor_screen
-
-        # _point.Point
-        self.pick_offset = pick_offset
-
-        # (mx,my) in top-left window coords
-        self.mouse_start = mouse_start
-
         # last object world _point.Point used for incremental moves
-        self.last_pos = last_pos
-
-        #  _point.Point start position
-        self.start_obj_pos = start_obj_pos
+        self.last_pos = selected.position.copy()
+        self.axis_lock = _point.Point(0, 0, 0)
 
     # def move(self, candidate: _point.Point,
     #          start_pos: _point.Point, last_pos: _point.Point):
@@ -54,22 +40,49 @@ class DragObject:
     #
     #     return new_pos
 
-    def __call__(self, mouse_point):
-        delta = mouse_point - self.mouse_start
+    def __call__(self, delta):
+        # project center to screen
+        anchor_screen = self.canvas.camera.ProjectPoint(self.selected.position)
+
+        # compute pick-world and offsets
+        pick_world = self.canvas.camera.UnprojectPoint(anchor_screen)
+        pick_offset = self.selected.position - pick_world
 
         # compute new anchor screen position (top-left coords)
-        screen_new = self.anchor_screen + delta
+        screen_new = anchor_screen + delta
 
         # Unproject at anchor winZ (note our unproject_point expects top-left coords)
         world_hit = self.canvas.camera.UnprojectPoint(screen_new)
 
-        # candidate world = world_hit + pick_offset
-        candidate = world_hit + self.pick_offset
+        world_hit += pick_offset
+        delta = world_hit - self.last_pos
 
-        delta = candidate - self.last_pos
+        print('world_hit:', world_hit)
+        print('delta:', delta)
+
+        if tuple(self.axis_lock) == (0.0, 0.0, 0.0):
+            if delta.z <= delta.x >= delta.y:
+                self.axis_lock.x = 1.0
+            elif delta.x <= delta.y >= delta.z:
+                self.axis_lock.y = 1.0
+            elif delta.x <= delta.z >= delta.y:
+                self.axis_lock.z = 1.0
+            else:
+                print(world_hit)
+                print(delta)
+                raise RuntimeError
+
+        delta.x *= self.axis_lock.x
+        delta.y *= self.axis_lock.y
+        delta.z *= self.axis_lock.z
+
+        print('delta:', delta)
 
         position = self.selected.position
+        print('position:', position)
         position += delta
+        print('position:', position)
+        print()
 
         # new_pos = self.owner.move(candidate, self.start_obj_pos, self.last_pos)
-        self.last_pos = candidate
+        self.last_pos = world_hit

@@ -659,16 +659,6 @@ class Camera:
         """
 
         with self._context:
-            print(point.x)
-            print(point.y)
-            print(point.z)
-            print()
-            print(self._modelview)
-            print()
-            print(self._projection)
-            print()
-            print(self._viewport)
-
             winx, winy, winz = GLU.gluProject(point.x, point.y, point.z,
                                               self._modelview, self._projection, self._viewport)
 
