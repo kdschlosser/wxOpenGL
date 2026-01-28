@@ -25,10 +25,6 @@ jobs:
           python -m pip install --upgrade pip
           git submodule update --init
 
-      - name: Build
-        run: |
-          python setup.py build
-
       - name: Install
         run: |
           pip install .
