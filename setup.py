@@ -80,7 +80,7 @@ def spawn(cmd):
 
 p_cmd = (
     'cd libs/assimp&&'
-    'cmake -G Ninja -DASSIMP_NO_EXPORT=on -DASSIMP_BUILD_TESTS=off -DASSIMP_INSTALL=off -DASSIMP_BUILD_ZLIB=on -S . -B build&&'
+    'cmake -G Ninja -DASSIMP_NO_EXPORT=on -DASSIMP_BUILD_TESTS=off -DASSIMP_INSTALL=off -S . -B build&&'
     'cd build&&'
     'ninja'
 )
