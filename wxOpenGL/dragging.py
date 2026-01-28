@@ -11,16 +11,13 @@ if TYPE_CHECKING:
 
 class DragObject:
 
-    def __init__(self, owner: "_base3d.Base3D",
-                 obj: "_base3d.Base3D",
+    def __init__(self, canvas: "_canvas.Canvas", selected: "_base3d.Base3D",
                  anchor_screen: _point.Point, pick_offset: _point.Point,
                  mouse_start: _point.Point, start_obj_pos: _point.Point,
                  last_pos: _point.Point):
-        # object that was actually clicked
-        self.owner = owner
 
-        # object to be moved
-        self.obj = obj
+        self.canvas = canvas
+        self.selected = selected
 
         # (winx, winy, winz)
         self.anchor_screen = anchor_screen
@@ -37,20 +34,42 @@ class DragObject:
         #  _point.Point start position
         self.start_obj_pos = start_obj_pos
 
-    def rotate(self, canvas: "_canvas.Canvas", mouse_point: _point.Point):
-        pass
+    # def move(self, candidate: _point.Point,
+    #          start_pos: _point.Point, last_pos: _point.Point):
+    #
+    #     # if self._x_arrow.is_selected:
+    #     #     new_pos = _point.Point(candidate.x, start_pos.y, start_pos.z)
+    #     # elif self._y_arrow.is_selected:
+    #     #     new_pos = _point.Point(start_pos.x, candidate.y, start_pos.z)
+    #     # elif self._z_arrow.is_selected:
+    #     #     new_pos = _point.Point(start_pos.x, start_pos.y, candidate.z)
+    #     # else:
+    #     #     return
+    #
+    #         # compute incremental delta to move things (arrows and object)
+    #     delta = candidate - last_pos
+    #
+    #     position = self._position
+    #     position += delta
+    #
+    #     return new_pos
 
-    def move(self, canvas: "_canvas.Canvas", mouse_point: _point.Point):
+    def __call__(self, mouse_point):
         delta = mouse_point - self.mouse_start
 
         # compute new anchor screen position (top-left coords)
         screen_new = self.anchor_screen + delta
 
         # Unproject at anchor winZ (note our unproject_point expects top-left coords)
-        world_hit = canvas.unproject_point(screen_new)
+        world_hit = self.canvas.camera.UnprojectPoint(screen_new)
 
         # candidate world = world_hit + pick_offset
         candidate = world_hit + self.pick_offset
 
-        new_pos = self.owner.move(candidate, self.start_obj_pos, self.last_pos)
-        self.last_pos = new_pos
+        delta = candidate - self.last_pos
+
+        position = self.selected.position
+        position += delta
+
+        # new_pos = self.owner.move(candidate, self.start_obj_pos, self.last_pos)
+        self.last_pos = candidate

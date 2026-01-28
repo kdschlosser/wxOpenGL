@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 import math
 import numpy as np
 
+from .geometry import angle as _angle
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
@@ -23,40 +24,30 @@ class FreeRotate:
 
         # accumulate orientation: q * orient
         quat = np.array(q, dtype=np.float64)
-        self.selected.rotate(quat)
         self.v0 = v1
-
-    @staticmethod
-    def normalize(v):
-        v = np.array(v, dtype=float)
-        n = np.linalg.norm(v)
-        return v / (n if n != 0 else 1.0)
-
-    @classmethod
-    def camera_axes(cls, eye, position, up):
-        # Returns forward, right, up (all unit) with forward pointing from eye -> center
-        f = cls.normalize((position - eye).as_numpy)
-        r = cls.normalize(np.cross(f, up))  # camera right  # NOQA
-        u = np.cross(r, f)  # camera up re-orthonormalized  # NOQA
-        return f, r, u
+        self.rotate(quat)
 
     @classmethod
     def axis_angle_to_matrix(cls, axis, angle):
-        axis = cls.normalize(axis)
+        v = np.array(axis, dtype=float)
+        n = np.linalg.norm(v)
+        axis = v / (n if n != 0 else 1.0)
+
         x, y, z = axis
         c = np.cos(angle)
         s = np.sin(angle)
         t = 1 - c
+
         # Rodrigues rotation matrix
         return np.array([
             [t*x*x + c,   t*x*y - s*z, t*x*z + s*y],
             [t*x*y + s*z, t*y*y + c,   t*y*z - s*x],
-            [t*x*z - s*y, t*y*z + s*x, t*z*z + c  ]
+            [t*x*z - s*y, t*y*z + s*x, t*z*z + c]
         ], dtype=float)
 
     def map_to_sphere(self, mx: int, my: int) -> np.ndarray:
         sens = 0.007  # radians per pixel, tune this
-        f, right, cam_up = self.camera_axes(self.canvas.camera.eye, self.canvas.camera.position, self.canvas.camera.up)
+        f, right, cam_up = self.canvas.camera.orthonormalized_axes
 
         # Build incremental rotations in camera space:
         # horizontal mouse -> rotate around camera up (yaw)
@@ -137,3 +128,27 @@ class FreeRotate:
                      dtype=np.float64)
 
         return self.quat_normalize(q)
+
+    def rotate(self, quat: np.ndarray):
+        # quaternion multiplication (q * orient)
+        angle = self.selected.angle
+
+        x1, y1, z1, w1 = quat
+        x2, y2, z2, w2 = angle.as_quat
+
+        q = np.array([w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+                     w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+                     w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+                     w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2], dtype=np.float64)
+
+        n = math.sqrt((q * q).sum())
+
+        if n == 0.0:
+            quat = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float64)
+        else:
+            quat = (q / n).astype(np.float64)
+
+        new_angle = _angle.Angle.from_quat(quat)
+        delta = new_angle - angle
+        angle += delta
+

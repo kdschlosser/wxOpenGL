@@ -5,8 +5,10 @@ from . import config as _config
 from . import canvas as _canvas
 from . import mouse_handler as _mouse_handler
 from .geometry import point as _point
+from .geometry import angle as _angle
 from . import gl_materials as _gl_materials
-
+from .objects import mesh_model as _mesh_model
+from .objects import mesh_generic as _mesh_generic
 
 Config = _config.Config
 
@@ -21,6 +23,11 @@ YellowPlasticMaterial = _gl_materials.YellowPlasticMaterial
 RubberMaterial = _gl_materials.RubberMaterial
 MetallicMaterial = _gl_materials.MetallicMaterial
 PolishedMaterial = _gl_materials.PolishedMaterial
+
+Point = _point.Point
+Angle = _angle.Angle
+MeshGeneric = _mesh_generic.MeshGeneric
+MeshModel = _mesh_model.MeshModel
 
 
 CONFIG_MOUSE_NONE = _config.MOUSE_NONE

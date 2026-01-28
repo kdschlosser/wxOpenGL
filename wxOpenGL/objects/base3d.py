@@ -7,7 +7,6 @@ from ..geometry import point as _point
 from ..geometry import angle as _angle
 from .. import config as _config
 from .. import gl_materials as _glm
-from .. import model_loaders as _model_loaders
 
 if TYPE_CHECKING:
     from .. import Canvas as _Canvas
@@ -68,6 +67,8 @@ class Base3D:
         self._build()
 
     def _build(self):
+        from .. import model_loader as _model_loader
+
         data = self._mesh
         angle = self._angle
         position = self._position
@@ -79,7 +80,7 @@ class Base3D:
 
         for vertices, faces in data:
             if self._reduce_settings is not None:
-                vertices, faces = _model_loaders.reduce_triangles(
+                vertices, faces = _model_loader.reduce_triangles(
                     vertices, faces, *self._reduce_settings
                 )
 
@@ -156,7 +157,7 @@ class Base3D:
 
     def _update_angle(self, angle: _angle.Angle):
         delta = angle - self._o_angle
-        self._o_angle = angle.copy
+        self._o_angle = angle.copy()
 
         for renderer in self._triangles:
             data = renderer.data
@@ -194,6 +195,10 @@ class Base3D:
     @property
     def rect(self) -> list[list[_point.Point, _point.Point]]:
         return self._rect
+
+    @property
+    def bb(self) -> list[np.ndarray]:
+        return self._bb
 
     @property
     def triangles(self) -> list["TriangleRenderer"]:

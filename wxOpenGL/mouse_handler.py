@@ -137,41 +137,12 @@ class MouseHandler:
         self.mouse_pos = mouse_pos
         self.is_motion = False
 
+        refresh = False
         selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
         if selected:
-            event = GLObjectEvent(wxEVT_GL_OBJECT_SELECTED)
-            event.SetId(self.canvas.GetId())
-            event.SetEventObject(self.canvas)
-            event.SetGLObject(selected)
-            self.canvas.GetEventHandler().ProcessEvent(event)
-
-            if not event.ShouldPropagate():
-                evt.Skip()
-                return
-
             with self.canvas:
-                if self._drag_obj is not None:
-                    self._drag_obj.owner.set_selected(False)
-
-                # prepare exact drag using project/unproject anchor approach
-                if not self.canvas.HasCapture():
-                    self.canvas.CaptureMouse()
-
-                # compute object's center world point from its hit_test_rect
-
-                if selected == self.canvas.selected:
-                    # if selected.is_move_shown:
-                    #     selected.stop_move()
-                    #     self._drag_obj = None
-                    # elif selected.is_angle_shown:
-                    #     self._free_rot = _free_rotate.FreeRotate(self.canvas, self.canvas.selected, x, y)
-                    # else:
-                    selected.set_selected(False)
-                    self.canvas.selected = None
-                else:
-                    self._free_rot = None
-
+                if self.canvas.selected == selected:
                     # project center to screen
                     win_point = self.canvas.camera.ProjectPoint(selected.position)
 
@@ -179,147 +150,232 @@ class MouseHandler:
                     pick_world = self.canvas.camera.UnprojectPoint(win_point)
                     pick_offset = selected.position - pick_world
 
-                    selected.set_selected(True)
-
                     # store drag state on canvas
                     self._drag_obj = _dragging.DragObject(
-                        selected, selected, anchor_screen=win_point,
+                        self.canvas, selected, anchor_screen=win_point,
                         pick_offset=pick_offset, mouse_start=mouse_pos,
                         start_obj_pos=selected.position.copy(),
                         last_pos=selected.position.copy())
 
-                self.canvas.Refresh(True)
+                    refresh = True
 
+        if not self.canvas.HasCapture():
+            self.canvas.CaptureMouse()
+
+        if refresh:
             self.canvas.Refresh(False)
 
     def on_left_up(self, evt: wx.MouseEvent):
-        self._process_mouse_release(evt)
+        refresh = False
+
         with self.canvas:
-            self._free_rot = None
+            if self.is_motion:
+                if self._drag_obj is not None:
+                    self._drag_obj = None
 
-            if self._drag_obj is not None:
-                self._drag_obj.obj.set_selected(False)
-                self._drag_obj = None
-
-                if self.canvas.HasCapture():
-                    self.canvas.ReleaseMouse()
-
-                self.canvas.Refresh(False)
-
-            evt.Skip()
-
-            if not self.is_motion:
+                    refresh = True
+            else:
                 x, y = evt.GetPosition()
                 mouse_pos = _point.Point(x, y)  # NOQA
 
-            if not evt.RightIsDown():
-                if self.canvas.HasCapture():
-                    self.canvas.ReleaseMouse()
+                if self._drag_obj is not None:
+                    self._drag_obj = None
+                    refresh = True
 
-                self.mouse_pos = None
+                selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
+                if selected:
+                    if self.canvas.selected == selected:
+                        selected.set_selected(False)
+                        self.canvas.selected = None
+                        event = GLObjectEvent(wxEVT_GL_OBJECT_UNSELECTED)
+                        event.SetId(self.canvas.GetId())
+                        event.SetEventObject(self.canvas)
+                        event.SetGLObject(selected)
+                        self.canvas.GetEventHandler().ProcessEvent(event)
+                        refresh = True
 
-            self.is_motion = False
+                    else:
+                        if self.canvas.selected is not None:
+                            tmp_selected = self.canvas.selected
+                            self.canvas.selected.set_selected(False)
+                            self.canvas.selected = None
+
+                            event = GLObjectEvent(wxEVT_GL_OBJECT_UNSELECTED)
+                            event.SetId(self.canvas.GetId())
+                            event.SetEventObject(self.canvas)
+                            event.SetGLObject(tmp_selected)
+                            self.canvas.GetEventHandler().ProcessEvent(event)
+
+                        self.canvas.selected = selected
+                        selected.set_selected(True)
+
+                        event = GLObjectEvent(wxEVT_GL_OBJECT_SELECTED)
+                        event.SetId(self.canvas.GetId())
+                        event.SetEventObject(self.canvas)
+                        event.SetGLObject(selected)
+                        self.canvas.GetEventHandler().ProcessEvent(event)
+                        refresh = True
+
+        self.mouse_pos = None
+        self.is_motion = False
+
+        if self.canvas.HasCapture():
+            self.canvas.ReleaseMouse()
+
+        if refresh:
+            self.canvas.Refresh(False)
 
         evt.Skip()
 
     def on_left_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
+        refresh = False
+
         selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
-
-        if selected:
-            event = GLObjectEvent(wxEVT_GL_OBJECT_ACTIVATED)
-            event.SetId(self.canvas.GetId())
-            event.SetEventObject(self.canvas)
-            event.SetGLObject(selected)
-            self.canvas.GetEventHandler().ProcessEvent(event)
-
-        self._process_mouse_release(evt)
-        evt.Skip()
-
-    def on_middle_up(self, evt: wx.MouseEvent):
-        if not self.is_motion:
-            x, y = evt.GetPosition()
-            mouse_pos = _point.Point(x, y)
-            selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
-
+        with self.canvas:
             if selected:
-                event = GLObjectEvent(wxEVT_GL_OBJECT_MIDDLE_CLICK)
+                event = GLObjectEvent(wxEVT_GL_OBJECT_ACTIVATED)
                 event.SetId(self.canvas.GetId())
                 event.SetEventObject(self.canvas)
                 event.SetGLObject(selected)
                 self.canvas.GetEventHandler().ProcessEvent(event)
 
-        self._process_mouse_release(evt)
+        if refresh:
+            self.canvas.Refresh(False)
+
+        evt.Skip()
+
+    def on_middle_up(self, evt: wx.MouseEvent):
+        refresh = False
+
+        if not self.is_motion:
+            with self.canvas:
+                x, y = evt.GetPosition()
+                mouse_pos = _point.Point(x, y)
+                selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
+
+                if selected:
+                    event = GLObjectEvent(wxEVT_GL_OBJECT_MIDDLE_CLICK)
+                    event.SetId(self.canvas.GetId())
+                    event.SetEventObject(self.canvas)
+                    event.SetGLObject(selected)
+                    self.canvas.GetEventHandler().ProcessEvent(event)
+
+        if self.canvas.HasCapture():
+            self.canvas.ReleaseMouse()
+
+        if refresh:
+            self.canvas.Refresh(False)
+
         evt.Skip()
 
     def on_middle_down(self, evt: wx.MouseEvent):
         self.is_motion = False
+        refresh = False
 
         if not self.canvas.HasCapture():
             self.canvas.CaptureMouse()
 
         x, y = evt.GetPosition()
         self.mouse_pos = _point.Point(x, y)
+
+        if refresh:
+            self.canvas.Refresh(False)
 
         evt.Skip()
 
     def on_middle_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
+        refresh = False
+
         selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
-
-        if selected:
-            event = GLObjectEvent(wxEVT_GL_OBJECT_MIDDLE_DCLICK)
-            event.SetId(self.canvas.GetId())
-            event.SetEventObject(self.canvas)
-            event.SetGLObject(selected)
-            self.canvas.GetEventHandler().ProcessEvent(event)
-
-        self._process_mouse_release(evt)
-        evt.Skip()
-
-    def on_right_up(self, evt: wx.MouseEvent):
-        if not self.is_motion:
-            x, y = evt.GetPosition()
-            mouse_pos = _point.Point(x, y)
-
-            selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
-
+        with self.canvas:
             if selected:
-                event = GLObjectEvent(wxEVT_GL_OBJECT_RIGHT_CLICK)
+                event = GLObjectEvent(wxEVT_GL_OBJECT_MIDDLE_DCLICK)
                 event.SetId(self.canvas.GetId())
                 event.SetEventObject(self.canvas)
                 event.SetGLObject(selected)
                 self.canvas.GetEventHandler().ProcessEvent(event)
 
-        self._process_mouse_release(evt)
+        if refresh:
+            self.canvas.Refresh(False)
+
+        evt.Skip()
+
+    def on_right_up(self, evt: wx.MouseEvent):
+        refresh = False
+
+        with self.canvas:
+            if self.is_motion:
+                if self._free_rot is not None:
+                    self._free_rot = None
+                    refresh = True
+            else:
+                x, y = evt.GetPosition()
+                mouse_pos = _point.Point(x, y)
+
+                selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
+
+                if self._free_rot is None:
+                    if selected:
+                        event = GLObjectEvent(wxEVT_GL_OBJECT_RIGHT_CLICK)
+                        event.SetId(self.canvas.GetId())
+                        event.SetEventObject(self.canvas)
+                        event.SetGLObject(selected)
+                        self.canvas.GetEventHandler().ProcessEvent(event)
+                else:
+                    self._free_rot = None
+                    refresh = True
+
+        if self.canvas.HasCapture():
+            self.canvas.ReleaseMouse()
+
+        if refresh:
+            self.canvas.Refresh(False)
+
         evt.Skip()
 
     def on_right_down(self, evt: wx.MouseEvent):
         self.is_motion = False
+        refresh = False
 
         if not self.canvas.HasCapture():
             self.canvas.CaptureMouse()
 
         x, y = evt.GetPosition()
-        self.mouse_pos = _point.Point(x, y)
+
+        mouse_pos = _point.Point(x, y)
+        self.mouse_pos = mouse_pos
+
+        selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
+        if selected and self.canvas.selected == selected:
+            self._free_rot = _free_rotate.FreeRotate(self.canvas, selected, x, y)
+            refresh = True
+
+        if refresh:
+            self.canvas.Refresh(False)
 
         evt.Skip()
 
     def on_right_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
+        refresh = False
+
         selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
+        with self.canvas:
+            if selected:
+                event = GLObjectEvent(wxEVT_GL_OBJECT_RIGHT_DCLICK)
+                event.SetId(self.canvas.GetId())
+                event.SetEventObject(self.canvas)
+                event.SetGLObject(selected)
+                self.canvas.GetEventHandler().ProcessEvent(event)
 
-        if selected:
-            event = GLObjectEvent(wxEVT_GL_OBJECT_RIGHT_DCLICK)
-            event.SetId(self.canvas.GetId())
-            event.SetEventObject(self.canvas)
-            event.SetGLObject(selected)
-            self.canvas.GetEventHandler().ProcessEvent(event)
+        if refresh:
+            self.canvas.Refresh(False)
 
-        self._process_mouse_release(evt)
         evt.Skip()
 
     def on_mouse_wheel(self, evt: wx.MouseEvent):
@@ -334,74 +390,81 @@ class MouseHandler:
         evt.Skip()
 
     def on_mouse_motion(self, evt: wx.MouseEvent):
+        refresh = False
+
         if evt.Dragging():
             x, y = evt.GetPosition()
-            new_mouse_pos = _point.Point(x, y)
+            mouse_pos = _point.Point(x, y)
 
             if self.mouse_pos is None:
-                self.mouse_pos = new_mouse_pos
+                self.mouse_pos = mouse_pos
 
-            delta = new_mouse_pos - self.mouse_pos
-            self.mouse_pos = new_mouse_pos
+            delta = mouse_pos - self.mouse_pos
+            self.mouse_pos = mouse_pos
 
             with self.canvas:
                 if evt.LeftIsDown():
-                    if self._drag_obj is not None:
-                        # if self._drag_obj.owner.is_move_shown:
-                        #     self._drag_obj.move(self, new_mouse_pos)
-                        #
-                        # elif self._drag_obj.owner.is_angle_shown:
-                        #     self._drag_obj.rotate(self, new_mouse_pos)
-                        pass
+                    self.is_motion = True
 
-                    elif self._free_rot is not None:
-                        self._free_rot(x, y)
-                    else:
-                        self.is_motion = True
+                    if self._drag_obj is None:
                         self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
+                    else:
+                        self._drag_obj(mouse_pos)
+
+                    refresh = True
 
                 if evt.MiddleIsDown():
                     self.is_motion = True
                     self._process_mouse(MOUSE_MIDDLE)(*list(delta)[:-1])
+                    refresh = True
+
                 if evt.RightIsDown():
                     self.is_motion = True
-                    self._process_mouse(MOUSE_RIGHT)(*list(delta)[:-1])
+
+                    if self._free_rot is not None:
+                        self._free_rot(x, y)
+                    else:
+                        self._process_mouse(MOUSE_RIGHT)(*list(delta)[:-1])
+
+                    refresh = True
+
                 if evt.Aux1IsDown():
                     self.is_motion = True
                     self._process_mouse(MOUSE_AUX1)(*list(delta)[:-1])
+                    refresh = True
+
                 if evt.Aux2IsDown():
                     self.is_motion = True
                     self._process_mouse(MOUSE_AUX2)(*list(delta)[:-1])
+                    refresh = True
 
+        if refresh:
             self.canvas.Refresh(False)
 
         evt.Skip()
 
-    def _process_mouse_release(self, evt: wx.MouseEvent):
-        if True not in (
-            evt.LeftIsDown(),
-            evt.MiddleIsDown(),
-            evt.RightIsDown(),
-            evt.Aux1IsDown(),
-            evt.Aux2IsDown()
-        ):
-            if self.canvas.HasCapture():
-                self.canvas.ReleaseMouse()
-
     def on_aux1_up(self, evt: wx.MouseEvent):
+        refresh = False
+
         if not self.is_motion:
-            x, y = evt.GetPosition()
-            mouse_pos = _point.Point(x, y)
-            selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
+            with self.canvas:
+                x, y = evt.GetPosition()
+                mouse_pos = _point.Point(x, y)
+                selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
-            if selected:
-                event = GLObjectEvent(wxEVT_GL_OBJECT_AUX1_CLICK)
-                event.SetId(self.canvas.GetId())
-                event.SetEventObject(self.canvas)
-                event.SetGLObject(selected)
-                self.canvas.GetEventHandler().ProcessEvent(event)
+                if selected:
+                    event = GLObjectEvent(wxEVT_GL_OBJECT_AUX1_CLICK)
+                    event.SetId(self.canvas.GetId())
+                    event.SetEventObject(self.canvas)
+                    event.SetGLObject(selected)
+                    self.canvas.GetEventHandler().ProcessEvent(event)
 
-        self._process_mouse_release(evt)
+        if self.canvas.HasCapture():
+            self.canvas.ReleaseMouse()
+
+        if refresh:
+            self.canvas.Refresh()
+
         evt.Skip()
 
     def on_aux1_down(self, evt: wx.MouseEvent):
@@ -420,30 +483,43 @@ class MouseHandler:
         mouse_pos = _point.Point(x, y)
         selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
-        if selected:
-            event = GLObjectEvent(wxEVT_GL_OBJECT_AUX1_DCLICK)
-            event.SetId(self.canvas.GetId())
-            event.SetEventObject(self.canvas)
-            event.SetGLObject(selected)
-            self.canvas.GetEventHandler().ProcessEvent(event)
+        refresh = False
 
-        self._process_mouse_release(evt)
-        evt.Skip()
-
-    def on_aux2_up(self, evt: wx.MouseEvent):
-        if not self.is_motion:
-            x, y = evt.GetPosition()
-            mouse_pos = _point.Point(x, y)
-            selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
-
+        with self.canvas:
             if selected:
-                event = GLObjectEvent(wxEVT_GL_OBJECT_AUX2_CLICK)
+                event = GLObjectEvent(wxEVT_GL_OBJECT_AUX1_DCLICK)
                 event.SetId(self.canvas.GetId())
                 event.SetEventObject(self.canvas)
                 event.SetGLObject(selected)
                 self.canvas.GetEventHandler().ProcessEvent(event)
 
-        self._process_mouse_release(evt)
+        if refresh:
+            self.canvas.Refresh()
+
+        evt.Skip()
+
+    def on_aux2_up(self, evt: wx.MouseEvent):
+        refresh = False
+
+        if not self.is_motion:
+            with self.canvas:
+                x, y = evt.GetPosition()
+                mouse_pos = _point.Point(x, y)
+                selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
+
+                if selected:
+                    event = GLObjectEvent(wxEVT_GL_OBJECT_AUX2_CLICK)
+                    event.SetId(self.canvas.GetId())
+                    event.SetEventObject(self.canvas)
+                    event.SetGLObject(selected)
+                    self.canvas.GetEventHandler().ProcessEvent(event)
+
+        if self.canvas.HasCapture():
+            self.canvas.ReleaseMouse()
+
+        if refresh:
+            self.canvas.Refresh()
+
         evt.Skip()
 
     def on_aux2_down(self, evt: wx.MouseEvent):
@@ -462,12 +538,17 @@ class MouseHandler:
         mouse_pos = _point.Point(x, y)
         selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
-        if selected:
-            event = GLObjectEvent(wxEVT_GL_OBJECT_AUX2_DCLICK)
-            event.SetId(self.canvas.GetId())
-            event.SetEventObject(self.canvas)
-            event.SetGLObject(selected)
-            self.canvas.GetEventHandler().ProcessEvent(event)
+        refresh = False
 
-        self._process_mouse_release(evt)
+        with self.canvas:
+            if selected:
+                event = GLObjectEvent(wxEVT_GL_OBJECT_AUX2_DCLICK)
+                event.SetId(self.canvas.GetId())
+                event.SetEventObject(self.canvas)
+                event.SetGLObject(selected)
+                self.canvas.GetEventHandler().ProcessEvent(event)
+
+        if refresh:
+            self.canvas.Refresh()
+
         evt.Skip()

@@ -102,6 +102,14 @@ class Canvas(glcanvas.GLCanvas):
         self._key_handler = _key_handler.KeyHandler(self)
         self._mouse_handler = _mouse_handler.MouseHandler(self)
 
+    @property
+    def selected(self):
+        return self._selected
+
+    @selected.setter
+    def selected(self, value):
+        self._selected = value
+
     @classmethod
     def GetViewSize(cls) -> _point.Point:
         if (

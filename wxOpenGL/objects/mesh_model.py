@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING
 
 from . import base3d as _base3d
 from .. import model_loader as _model_loader
-
+from ..geometry import angle as _angle
+from ..geometry import point as _point
 
 if TYPE_CHECKING:
-    from ..geometry import angle as _angle
-    from ..geometry import point as _point
     from .. import Canvas as _Canvas
     from .. import gl_materials as _glm
+
 
 
 class MeshModel(_base3d.Base3D):

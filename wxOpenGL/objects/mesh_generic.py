@@ -2,16 +2,16 @@ from typing import TYPE_CHECKING
 
 from . import base3d as _base3d
 import numpy as np
+from ..geometry import angle as _angle
+from ..geometry import point as _point
 
 
 if TYPE_CHECKING:
-    from ..geometry import angle as _angle
-    from ..geometry import point as _point
     from .. import Canvas as _Canvas
     from .. import gl_materials as _glm
 
 
-class MeshGENERIC(_base3d.Base3D):
+class MeshGeneric(_base3d.Base3D):
 
     def __init__(self, canvas: "_Canvas", material: "_glm.GLMaterial",
                  selected_material: "_glm.GLMaterial", smooth: bool,

@@ -1,6 +1,13 @@
 import wx
 import wxOpenGL
 
+material = wxOpenGL.PlasticMaterial([0.4, 0.4, 0.4, 1.0])
+selected_material = wxOpenGL.PlasticMaterial([1.0, 0.5, 0.5, 1.0])
+point = wxOpenGL.Point(0, 30, 50)
+angle = wxOpenGL.Angle.from_euler(45.0, 270.0, 0.0)
+
+selected_material.x_ray = True
+
 
 class Frame(wx.Frame):
 
@@ -13,6 +20,10 @@ class Frame(wx.Frame):
         hsizer.Add(self.canvas, 1, wx.EXPAND)
         vsizer.Add(hsizer, 1, wx.EXPAND)
         self.SetSizer(vsizer)
+
+        self.model = wxOpenGL.MeshModel(self.canvas, material, selected_material, False,
+                           r'C:\Users\drsch\PycharmProjects\harness_designer\scratches\15326864_3D_STP.stp',
+                           point, angle)
 
 
 class App(wx.App):

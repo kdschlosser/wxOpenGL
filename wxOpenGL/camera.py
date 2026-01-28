@@ -247,6 +247,19 @@ class Camera:
         else:
             wx.CallAfter(self.canvas.Refresh, False)
 
+    @property
+    def orthonormalized_axes(self):
+        def normalize(v):
+            v = np.array(v, dtype=float)
+            n = np.linalg.norm(v)
+            return v / (n if n != 0 else 1.0)
+
+        # Returns forward, right, up (all unit) with forward pointing from eye -> center
+        f = normalize((self._position - self._eye).as_numpy)
+        r = normalize(np.cross(f, self._up))  # camera right  # NOQA
+        u = np.cross(r, f)  # camera up re-orthonormalized  # NOQA
+        return f, r, u
+
     def GetObjectsInView(self, objs: list) -> list:
         if self._clip is None:
             self._is_dirty = True
@@ -275,6 +288,8 @@ class Camera:
                 if renderer.is_opaque:
                     ret.insert(offset, obj)
                     offset += 1
+                else:
+                    ret.append(obj)
 
         return ret
 
@@ -464,9 +479,9 @@ class Camera:
         self._calculate_camera()
         with self._context:
             self._is_dirty = False
-            self._viewport = GL.glGetIntegerv(GL.GL_VIEWPORT)
-            self._projection = np.array(GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4, 4), order="F").T
-            self._modelview = np.array(GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T
+            self._viewport = np.ascontiguousarray(GL.glGetIntegerv(GL.GL_VIEWPORT))
+            self._projection = np.ascontiguousarray(np.array(GL.glGetDoublev(GL.GL_PROJECTION_MATRIX)).reshape((4, 4), order="F").T)
+            self._modelview = np.ascontiguousarray(np.array(GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T)
             self._clip = (self._projection @ self._modelview).astype(np.float32)
             self._frustum_planes = self._extract_frustum_planes(self._clip)
 
@@ -644,6 +659,16 @@ class Camera:
         """
 
         with self._context:
+            print(point.x)
+            print(point.y)
+            print(point.z)
+            print()
+            print(self._modelview)
+            print()
+            print(self._projection)
+            print()
+            print(self._viewport)
+
             winx, winy, winz = GLU.gluProject(point.x, point.y, point.z,
                                               self._modelview, self._projection, self._viewport)
 
