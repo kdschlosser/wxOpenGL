@@ -1,19 +1,27 @@
+import os
 import numpy as np
 
-import meshio
 import pyfqmr
 
 from OCP.TopAbs import TopAbs_REVERSED
 from OCP.BRep import BRep_Tool
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.TopLoc import TopLoc_Location
-
+from OCP.Vrml import Vrml_Provider
+from OCP.STEPControl import STEPControl_Reader
+from OCP.IGESControl import IGESControl_Reader
 from OCP.TopExp import TopExp_Explorer
 from OCP.TopAbs import TopAbs_FACE
 from OCP.TopoDS import TopoDS
 
+from .errors import ModelLoadError
 
-def ocp_read_shape(shape):
+os.environ['PATH'] = os.path.dirname(__file__) + ';' + os.environ['PATH']
+
+import pyassimp  # NOQA
+
+
+def _ocp_read_shape(shape):
 
     BRepMesh_IncrementalMesh(theShape=shape, theLinDeflection=0.001,
                              isRelative=True, theAngDeflection=0.1, isInParallel=True)
@@ -58,52 +66,61 @@ def ocp_read_shape(shape):
     return vertices, faces
 
 
-def meshio_read_mesh(m: meshio.Mesh):
-    vertices = np.asarray(m.points, dtype=np.float64)
-    if vertices.ndim != 2 or vertices.shape[1] < 3:
-        raise ValueError(f"meshio points has unexpected shape {vertices.shape}")
+def _load_with_assimp(path):
+    scene = pyassimp.load(path, processing=pyassimp.postprocess.aiProcess_Triangulate |
+                                           pyassimp.postprocess.aiProcess_JoinIdenticalVertices)
 
-    vertices = vertices[:, :3]
+    data = [[mesh.vertices.copy(), mesh.faces.copy()] for mesh in scene.meshes]
+    pyassimp.release(scene)
 
-    faces_out = []
+    return data
 
-    for cell_block in m.cells:
-        ctype = cell_block.type
-        data = np.asarray(cell_block.data)
 
-        if ctype == "triangle":
-            faces_out.append(data.astype(np.int32, copy=False))
+def _load_vrml(file):
+    reader = Vrml_Provider()
+    reader.ReadFile(file)
+    reader.TransferRoots()
+    shape = reader.Shape()
 
-        elif ctype == "quad":
-            # triangulate quads
-            for q in data:
-                i0, i1, i2, i3 = map(int, q)
-                faces_out.append(np.array([[i0, i1, i2], [i0, i2, i3]],
-                                          dtype=np.int32))
+    vertices, faces = _ocp_read_shape(shape)
 
-        elif ctype == "polygon":
-            # may be ragged; fan triangulate each polygon
-            for poly in data:
-                poly = np.asarray(poly, dtype=np.int64).ravel()
-                if len(poly) < 3:
-                    continue
+    return [[vertices, faces]]
 
-                i0 = int(poly[0])
-                for j in range(1, len(poly) - 1):
-                    faces_out.append(np.array([[i0, int(poly[j]), int(poly[j + 1])]],
-                                              dtype=np.int32))
 
-        else:
-            # ignore non-surface cells
-            continue
+def _load_step(file):
+    step_reader = STEPControl_Reader()
+    step_reader.ReadFile(file)
+    step_reader.TransferRoots()  # NOQA
+    shape = step_reader.Shape()
 
-    if faces_out:
-        faces = np.vstack(faces_out).astype(np.int32, copy=False)
+    vertices, faces = _ocp_read_shape(shape)
+
+    return [[vertices, faces]]
+
+
+def _load_iges(file):
+    reader = IGESControl_Reader()
+    reader.ReadFile(file)
+    reader.TransferRoots()  # NOQA
+    shape = reader.Shape()
+
+    vertices, faces = _ocp_read_shape(shape)
+
+    return [[vertices, faces]]
+
+
+def load(file):
+    if file.endswith('.vrml'):
+        return _load_vrml(file)
+    elif file.endswith('.iges'):
+        return _load_iges(file)
+    elif file.endswith('.step') or file.endswith('stp'):
+        return _load_step(file)
     else:
-        faces = np.empty((0, 3), dtype=np.int32)
-
-    vertices = vertices.astype(np.float64, copy=False)
-    return vertices, faces
+        try:
+            return _load_with_assimp(file)
+        except Exception as err:
+            raise ModelLoadError from err
 
 
 def reduce_triangles(verts: np.ndarray, faces: np.ndarray, target_count: int,
@@ -155,4 +172,3 @@ def reduce_triangles(verts: np.ndarray, faces: np.ndarray, target_count: int,
     vertices, faces, _ = mesh_simplifier.getMesh()
 
     return vertices, faces
-

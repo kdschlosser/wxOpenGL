@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING
 
 from . import base3d as _base3d
-from ..model_loaders import _3mf  # NOQA
+from .. import model_loader as _model_loader
+
 
 if TYPE_CHECKING:
     from ..geometry import angle as _angle
@@ -10,14 +11,13 @@ if TYPE_CHECKING:
     from .. import gl_materials as _glm
 
 
-class Mesh3MF(_base3d.Base3D):
+class MeshModel(_base3d.Base3D):
 
     def __init__(self, canvas: "_Canvas", material: "_glm.GLMaterial",
                  selected_material: "_glm.GLMaterial", smooth: bool,
-                 file_path: str, position: _point.Point | None = None,
+                 file: str, position: _point.Point | None = None,
                  angle: _angle.Angle | None = None):
 
-        data = _3mf.load(file_path)
-
+        data = _model_loader.load(file)
         _base3d.Base3D.__init__(self, canvas, material, selected_material,
                                 smooth, data, position, angle)

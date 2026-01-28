@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools", "wheel", "pyMSVC@git+https://github.com/kdschlosser/python_msvc;sys_platform=='win32'"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -25,20 +25,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3 :: Only",
 ]
-
-dependencies = [
-    "PyOpenGL>=3.1.10",
-    "PyOpenGL-accelerate>=3.1.10",
-    "cadquery-ocp==7.8.1.1",
-    "ifcopenshell==0.8.4.post1",
-    "lib3mf==2.4.1.post1",
-    "meshio==5.3.5",
-    "numpy==2.2.6",
-    "pyfqmr==0.5.0",
-    "scipy==1.17.0",
-    "wxPython==4.2.4",
-    "ezdxf"
-]
+dynamic = ["dependencies"]
 
 [project.urls]
 "Homepage" = "https://github.com/kdschlosser/wxOpenGL"

@@ -25,6 +25,15 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+wxOpenGL/*.dll
+wxOpenGL/*.ilk
+wxOpenGL/*.pdb
+wxOpenGL/*.dynlib
+wxOpenGL/*.so
+wxOpenGL/*.so.*
+libs/assimp/build/
+
+libs/assimp/port/PyAssimp/*.egg-info/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
