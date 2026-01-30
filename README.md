@@ -119,72 +119,59 @@ Here are the config settings...
 * ground_height (default: `0.0`): Sets where the "floor" is located.
                                 This is the bottom limit of object positioning 
                                 and also how low the camera is able to move.
-<br/>
-<br/> 
+
 * eye_height (default `10.0`): Starting height of the camera. This setting is not being used yet.
+
 * reflections (default `False`): Show reflections on the floor. `grid.render` must also be set 
                                  to `True`. This is not being used yet.
-<br/>
-<br/>
+
 * reflection_strength (default `50.0`): Range is 0.0 - 100.0. This is how strong the reflection is.
                                       Not being used yet.   
-<br/>
-<br/>
+
 * grid: Grid settings
   * render (defualt `True`): Turn on and off rendering the grid floor. The impact to performance for 
                              rendering the floor is very small. There is a startup time penatly of 
                              about 7ms. The floor gets build and then stored into the memory on the 
                              video card which makes it super fast to render when a refresh occurs. 
                              I am talking 0.13ms fast.  
-<br/>
-<br/>
+
   * size (default `1000`): This is how far the floor goes in all directions. The clipping plane
                            for far is hard coded at 1000. so the floor is defulted to that clipping 
                            distance. The floow distance is measure as 1000 from `(0, ground_height, 0)`
                            that means the total flore area has a size of `(2000, 2000)`.
-<br/>
-<br/>
+
   * step (default `50`): This is the size of the checkerboard. Like the `size` this is a 1/2 value so 
                          setting it to 50 produces squares that have a size of `(100, 100)` 
-<br/>
-<br/>
+
   * odd_color (default `[0.3, 0.3, 0.3, 0.8]`): Odd square color. This is a scalar value for 
                                                 `[red, green, blue, alpha]`
                                                 each component has a range of `0.0` to `1.0`
-<br/>
-<br/>
+
   * even_color (default `[0.8, 0.8, 0.8, 0.8]`): Even square colors. Works the same as the `odd_color`
                                                  setting.
-<br/>
-<br/>
+
 * virtual_canvas: One of the things I did not care for was resizing the window and having
                   the objects in view change viewable size. I wanted to keep the appearance the same
                   and increase the field of view when making the window larger or smaller.
                   This was a but tricky to do because I had to wrap the OpenGL window with a `wx.Panel`
                   and the gl window is not coupled to a sizer. The gl window is always the same size
                   and the panel that holds the gl window is what clips the view.
-<br/>
-<br/>
+
   * width (default `1920`): Sets the width of the gl window. If you need to change
                             this setting you will want to keep the aspect ratio of 16:9
                             between the width and height otherwise things can get distored. 
-<br/>
-<br/>
+
   * height (defualt `1080`): Sets the height, same rules apply that are outlined above. 
-<br/>
-<br/>
+
 * keyboard_settings: These settings control how fast key repeats fired and how fast the speed ramps up.
-<br/>
-<br/>
+
   * max_speed_factor (default `10.0`): This the max the factorcan get. The facor is a number that starts
                                        at `start_speed_factor` and with each loop of the thread if the 
                                        key is being held down the factor is increased by 
                                        `speed_factor_increment` until it hits the `max_speed_factor`
-<br/>
-<br/>
+
   * speed_factor_increment (default `0.1`): read above
-<br/>
-<br/>
+
   * start_speed_factor (default `1.0`): read above
 
 This next group of config settings controls what button or key does what
@@ -206,17 +193,13 @@ The next bunch of constants are modifiers to alter the behavior of the movement 
 to the direction of travel the mouse is moving in. These options get OR'ed `|` to the constants above
 
 * CONFIG_MOUSE_REVERSE_X_AXIS: Flips the X axis to right mouse movement becomes left and left becomes right
-<br/>
-<br/>
+
 * CONFIG_MOUSE_REVERSE_Y_AXIS: Flips the Y axis so up becomes down and down becomes up
-<br/>
-<br/>
+
 * CONFIG_MOUSE_REVERSE_WHEEL_AXIS: Flips the mouse wheel rotation
-<br/>
-<br/>
+
 * CONFIG_MOUSE_SWAP_AXIS: swaps the X and Y axis so up/down becomes left/right and left/right becomes up/down
-<br/>
-<br/>
+
 
 Setting the keys to be used needs to be set as the decimal value of the character the key represents
 as seen on an ASCII chart. You don't need to look at an ASCII chart because Python has a nice built in function
