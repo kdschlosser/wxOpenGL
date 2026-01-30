@@ -250,14 +250,16 @@ class Config(metaclass=_Config):
 
     ground_height = 0.0
     eye_height = 10.0
+    reflections = False
+    reflection_strength = 50.0
 
     class grid(metaclass=_Config):
         render = True
         size = 1000
         step = 50
 
-        odd_color = [0.3, 0.3, 0.3, 0.4]
-        even_color = [0.8, 0.8, 0.8, 0.4]
+        odd_color = [0.3, 0.3, 0.3, 0.8]
+        even_color = [0.8, 0.8, 0.8, 0.8]
 
     class virtual_canvas(metaclass=_Config):
         width = 1920
@@ -307,14 +309,19 @@ class Config(metaclass=_Config):
         left_key = wx.WXK_LEFT
         right_key = wx.WXK_RIGHT
         sensitivity = 1.0
-        speed = 1.0
+        speed = 5.0
 
     class zoom(metaclass=_Config):
         mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
         in_key = wx.WXK_ADD
         out_key = wx.WXK_SUBTRACT
-        sensitivity = 1.0
+        sensitivity = 5.0
 
     class reset(metaclass=_Config):
         key = wx.WXK_HOME
         mouse = MOUSE_NONE
+
+    class debug:
+        log_args = False
+        call_duration = False
+        bypass = True

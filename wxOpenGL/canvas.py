@@ -6,12 +6,43 @@ import numpy as np
 from wx import glcanvas
 from OpenGL import GL
 from OpenGL import GLU
+from PIL import Image
+import ctypes
+
 
 from .geometry import point as _point
-
+from . import debug as _debug
 from .config import Config
 from .config import MOUSE_REVERSE_Y_AXIS
 from .config import MOUSE_REVERSE_X_AXIS
+
+
+def _pil_image_2_wx_bitmap(img: Image.Image) -> wx.Bitmap:
+    rgb_data = img.convert('RGB').tobytes()
+    alpha_data = img.convert('RGBA').tobytes()[3::4]
+    wx_img = wx.Image(img.size[0], img.size[1], rgb_data, alpha_data)
+    return wx_img.ConvertToBitmap()
+
+
+def _wx_bitmap_2_pil_image(bmp: wx.Bitmap) -> Image.Image:
+    wx_img = bmp.ConvertToImage()
+
+    rgb_data = bytes(wx_img.GetDataBuffer())
+    alpha_data = wx_img.GetAlphaBuffer()
+    if alpha_data is not None:
+        alpha_img = Image.new('L', (wx_img.GetWidth(), wx_img.GetHeight()))
+        alpha_img.frombytes(bytes(alpha_data))
+    else:
+        alpha_img = None
+
+    img = Image.new('RGB', (wx_img.GetWidth(), wx_img.GetHeight()))
+    img.frombytes(rgb_data)
+    img = img.convert('RGBA')
+    if alpha_img is not None:
+        img.putalpha(alpha_img)
+        alpha_img.close()
+
+    return img
 
 
 class Canvas(glcanvas.GLCanvas):
@@ -85,6 +116,7 @@ class Canvas(glcanvas.GLCanvas):
         self._init = False
         self.context = _context.GLContext(self)
         self.camera = _camera.Camera(self)
+        self._angle_overlay = None
 
         self.size = None
 
@@ -95,12 +127,53 @@ class Canvas(glcanvas.GLCanvas):
         self._selected = None
         self._objects = []
         self._ref_count = 0
+        self.grid_vbo = None
+        self.grid_vertex_count = 0
+
+        self._angle_overlay_bitmap = wx.NullBitmap
 
         from . import key_handler as _key_handler
         from . import mouse_handler as _mouse_handler
 
         self._key_handler = _key_handler.KeyHandler(self)
         self._mouse_handler = _mouse_handler.MouseHandler(self)
+
+        font = self.GetFont()
+        font.SetPointSize(15)
+        self.SetFont(font)
+
+    @_debug.logfunc
+    def set_angle_overlay(self, x, y, z):
+        if None in (x, y, z):
+            self._angle_overlay_bitmap = wx.NullBitmap
+            return
+
+        angle_overlay = f'X: {round(x, 6)}  Y: {round(y, 6)}  Z: {round(z, 6)}'
+
+        w, h = self.GetTextExtent(angle_overlay)
+        w += 14
+        h += 4
+
+        buf = bytearray([0] * (w * h * 4))
+        bitmap = wx.Bitmap.FromBufferRGBA(w, h, buf)
+        dc = wx.MemoryDC()
+        dc.SelectObject(bitmap)
+        gcdc = wx.GCDC(dc)
+        gcdc.SetFont(self.GetFont())
+        gcdc.SetTextForeground(wx.Colour(255, 255, 255, 255))
+        gcdc.SetTextBackground(wx.Colour(0, 0, 0, 0))
+        gcdc.DrawText(angle_overlay, 2, 2)
+        # gcdc.SetBrush(wx.Brush(wx.Colour(255, 255, 255, 255)))
+        # gcdc.DrawRectangle(0, 0, w, h)
+        dc.SelectObject(wx.NullBitmap)
+
+        gcdc.Destroy()
+        del gcdc
+
+        dc.Destroy()
+        del dc
+
+        self._angle_overlay_bitmap = bitmap
 
     @property
     def selected(self):
@@ -163,6 +236,7 @@ class Canvas(glcanvas.GLCanvas):
 
         glcanvas.GLCanvas.Refresh(self, *args, **kwargs)
 
+    @_debug.logfunc
     def TruckPedestal(self, dx: float, dy: float) -> None:
         if Config.truck_pedestal.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
@@ -176,10 +250,12 @@ class Canvas(glcanvas.GLCanvas):
 
         self.camera.TruckPedestal(dx, dy, Config.truck_pedestal.speed)
 
+    @_debug.logfunc
     def Zoom(self, dx: float, _):
         dx *= Config.zoom.sensitivity
         self.camera.Zoom(dx)
 
+    @_debug.logfunc
     def Rotate(self, dx: float, dy: float) -> None:
         if Config.rotate.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
@@ -193,6 +269,7 @@ class Canvas(glcanvas.GLCanvas):
 
         self.camera.Rotate(dx, dy)
 
+    @_debug.logfunc
     def Walk(self, dx: float, dy: float) -> None:
         if dy == 0.0:
             self.PanTilt(dx * 6.0, 0.0)
@@ -213,6 +290,7 @@ class Canvas(glcanvas.GLCanvas):
         self.camera.Walk(dx, dy, Config.walk.speed)
         self.PanTilt(look_dx * 2.0, 0.0)
 
+    @_debug.logfunc
     def PanTilt(self, dx: float, dy: float) -> None:
         if Config.pan_tilt.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
@@ -238,8 +316,9 @@ class Canvas(glcanvas.GLCanvas):
         with self.context:
             GL.glViewport(0, 0, width, height)
 
+    @_debug.logfunc
     def _on_paint(self, _):
-        _ = wx.PaintDC(self)
+        pdc = wx.PaintDC(self)
 
         with self.context:
             if not self._init:
@@ -248,11 +327,54 @@ class Canvas(glcanvas.GLCanvas):
 
             self.OnDraw()
 
+            if self._angle_overlay_bitmap.IsOk():
+                w, h = self._angle_overlay_bitmap.GetSize()
+
+                img = _wx_bitmap_2_pil_image(self._angle_overlay_bitmap)
+
+                pw, ph = self.GetParent().GetSize()
+                sw, sh = self.GetSize()
+
+                x = (sw - pw) // 2
+                y = (sh - ph) // 2
+
+                x += 30
+                y += 20
+                gl_y = sh - y
+
+                # Read pixel data from the front buffer (now visible on the screen)
+                GL.glReadBuffer(GL.GL_FRONT)  # Set read buffer explicitly
+                pixel_data = GL.glReadPixels(x, gl_y, w, h, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE)
+
+                def cc(r_, g_, b_):
+                    return 255 - r_, 255 - g_, 255 - b_
+
+                for y_ in range(h):
+                    corrected_y = h - 1 - y_
+                    row = corrected_y * w
+                    for x_ in range(w):
+                        r, g, b, a = img.getpixel((x_, y_))
+                        if a == 0:
+                            continue
+
+                        i = (row + x_) * 4
+                        r, g, b = cc(pixel_data[i], pixel_data[i + 1], pixel_data[i + 2])
+                        img.putpixel((x_, y_), (r, g, b, a))
+
+                gcdc = wx.GCDC(pdc)
+                gc = gcdc.GetGraphicsContext()
+                bitmap = _pil_image_2_wx_bitmap(img)
+                gc.DrawBitmap(bitmap, float(x + 5), float(y - 35), float(w), float(h))
+
+                gcdc.Destroy()
+                del gcdc
+
     @staticmethod
     def _normalize(v: np.ndarray) -> np.ndarray:
         n = np.linalg.norm(v)
         return v if n == 0.0 else v / n
 
+    @_debug.logfunc
     def InitGL(self):
         GL.glClearColor(0.20, 0.20, 0.20, 0.0)
         # GL.glViewport(0, 0, w, h)
@@ -296,40 +418,137 @@ class Canvas(glcanvas.GLCanvas):
         GLU.gluPerspective(65, aspect, 0.1, 1000.0)
         GL.glMatrixMode(GL.GL_MODELVIEW)
 
+        def _do():
+            self.camera.Zoom(1.0)
+
+        wx.CallAfter(_do)
+
     @staticmethod
-    def DrawGrid():
+    def initialize_grid():
+        """Precompute the grid geometry and colors and upload it to a VBO."""
+
         if not Config.grid.render:
             return
 
-        # --- Tiles ---
+        # Grid configuration
         size = Config.grid.size
         step = Config.grid.step
+        even_color = Config.grid.even_color
+        odd_color = Config.grid.odd_color
+        ground_height = Config.ground_height
 
-        GL.glLightfv(GL.GL_LIGHT0, GL.GL_AMBIENT, [0.5, 0.5, 0.5, 0.5])
-        GL.glLightfv(GL.GL_LIGHT0, GL.GL_DIFFUSE, [0.3, 0.3, 0.3, 0.5])
-        GL.glLightfv(GL.GL_LIGHT0, GL.GL_SPECULAR, [0.5, 0.5, 0.5, 0.5])
-
-        GL.glMaterialfv(GL.GL_FRONT, GL.GL_AMBIENT, [0.3, 0.3, 0.3, 0.5])
-        GL.glMaterialfv(GL.GL_FRONT, GL.GL_DIFFUSE, [0.5, 0.5, 0.5, 0.5])
-        GL.glMaterialfv(GL.GL_FRONT, GL.GL_SPECULAR, [0.8, 0.8, 0.8, 0.5])
-        GL.glMaterialf(GL.GL_FRONT, GL.GL_SHININESS, 100.0)
+        # Precompute vertices and colors
+        vertices = []
+        colors = []
 
         for x in range(-size, size, step):
             for y in range(-size, size, step):
                 # Alternate coloring for checkerboard effect
                 is_even = ((x // step) + (y // step)) % 2 == 0
-                if is_even:
-                    GL.glColor4f(*Config.grid.even_color)
-                else:
-                    GL.glColor4f(*Config.grid.odd_color)
+                color = even_color if is_even else odd_color
 
-                GL.glBegin(GL.GL_QUADS)
-                GL.glVertex3f(x, 0, y)
-                GL.glVertex3f(x, 0, y + step)
-                GL.glVertex3f(x + step, 0, y + step)
-                GL.glVertex3f(x + step, 0, y)
-                GL.glEnd()
+                # Each quad consists of 4 vertices
+                vertices.extend([
+                    [x, ground_height, y],              # Bottom-left
+                    [x, ground_height, y + step],      # Top-left
+                    [x + step, ground_height, y + step],  # Top-right
+                    [x + step, ground_height, y],      # Bottom-right
+                ])
 
+                # Each vertex has the same color for the quad
+                colors.extend([color] * 4)
+
+        # Flatten the data
+        vertices = np.array(vertices, dtype=np.float32).flatten()
+        colors = np.array(colors, dtype=np.float32).flatten()
+
+        # Combine vertices and colors into one array to pass to OpenGL
+        grid_vbo_data = np.concatenate((vertices, colors))
+
+        # Calculate the number of vertices (for rendering)
+        grid_vertex_count = len(vertices) // 3
+
+        # Create and upload the VBO
+        grid_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, grid_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, grid_vbo_data.nbytes,
+                        grid_vbo_data, GL.GL_STATIC_DRAW)
+
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)  # Unbind the VBO
+
+        return grid_vbo, grid_vertex_count
+
+    @_debug.logfunc
+    def DrawGrid(self):
+        """Render the precomputed grid using the VBO."""
+        if not Config.grid.render:
+            return
+
+        if self.grid_vbo is None:
+            # Ensure the VBO is initialized
+            self.grid_vbo, self.grid_vertex_count = self.initialize_grid()
+
+        # Setup the VBO for rendering
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.grid_vbo)
+
+        # Configure vertex attributes (position and color)
+        vertex_size = self.grid_vertex_count * 3 * 4  # Total size of vertex data (position: x, y, z)
+        color_offset = vertex_size  # Colors start immediately after vertices
+
+        stride = 0  # No stride between consecutive vertex positions
+        GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+        GL.glVertexPointer(3, GL.GL_FLOAT, stride, ctypes.c_void_p(0))  # First 3 floats are position
+
+        GL.glEnableClientState(GL.GL_COLOR_ARRAY)
+        GL.glColorPointer(4, GL.GL_FLOAT, stride, ctypes.c_void_p(color_offset))  # Next 3 floats are color
+
+        # Draw the grid
+        GL.glDrawArrays(GL.GL_QUADS, 0, self.grid_vertex_count)
+
+        # Cleanup
+        GL.glDisableClientState(GL.GL_COLOR_ARRAY)
+        GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    #
+    # @staticmethod
+    # @_debug.logfunc
+    # def DrawGrid():
+    #     if not Config.grid.render:
+    #         return
+    #
+    #     # --- Tiles ---
+    #     size = Config.grid.size
+    #     step = Config.grid.step
+    #     even_color = Config.grid.even_color
+    #     odd_color = Config.grid.odd_color
+    #     ground_height = Config.ground_height
+    #
+    #     GL.glLightfv(GL.GL_LIGHT0, GL.GL_AMBIENT, [0.5, 0.5, 0.5, 0.5])
+    #     GL.glLightfv(GL.GL_LIGHT0, GL.GL_DIFFUSE, [0.3, 0.3, 0.3, 0.5])
+    #     GL.glLightfv(GL.GL_LIGHT0, GL.GL_SPECULAR, [0.5, 0.5, 0.5, 0.5])
+    #
+    #     GL.glMaterialfv(GL.GL_FRONT, GL.GL_AMBIENT, [0.3, 0.3, 0.3, 0.5])
+    #     GL.glMaterialfv(GL.GL_FRONT, GL.GL_DIFFUSE, [0.5, 0.5, 0.5, 0.5])
+    #     GL.glMaterialfv(GL.GL_FRONT, GL.GL_SPECULAR, [0.8, 0.8, 0.8, 0.5])
+    #     GL.glMaterialf(GL.GL_FRONT, GL.GL_SHININESS, 125.0)
+    #
+    #     for x in range(-size, size, step):
+    #         for y in range(-size, size, step):
+    #             # Alternate coloring for checkerboard effect
+    #             is_even = ((x // step) + (y // step)) % 2 == 0
+    #             if is_even:
+    #                 GL.glColor4f(*even_color)
+    #             else:
+    #                 GL.glColor4f(*odd_color)
+    #
+    #             GL.glBegin(GL.GL_QUADS)
+    #             GL.glVertex3f(x, ground_height, y)
+    #             GL.glVertex3f(x, ground_height, y + step)
+    #             GL.glVertex3f(x + step, ground_height, y + step)
+    #             GL.glVertex3f(x + step, ground_height, y)
+    #             GL.glEnd()
+
+    @_debug.logfunc
     def _render_bounding_boxes(self):
 
         for obj in self._objects:
@@ -338,7 +557,7 @@ class Canvas(glcanvas.GLCanvas):
             else:
                 GL.glColor4f(1.0, 0.5, 0.5, 0.3)
 
-            for p1, p2 in obj.hit_test_rect:
+            for p1, p2 in obj.rect:
 
                 x1, y1, z1 = p1.as_float
                 x2, y2, z2 = p2.as_float
@@ -457,6 +676,14 @@ class Canvas(glcanvas.GLCanvas):
                 GL.glVertex3f(x2, y2, z2)
                 GL.glEnd()
 
+    @staticmethod
+    @_debug.logfunc
+    def draw_scene(objects):
+        for obj in objects:
+            for renderer in obj.triangles:
+                renderer()
+
+    @_debug.logfunc
     def OnDraw(self):
         with self.context:
             w, h = self.GetSize()
@@ -474,13 +701,22 @@ class Canvas(glcanvas.GLCanvas):
 
             GL.glPushMatrix()
 
+            # Reflect across the y = 0 plane (flip the Y-axis)
+            GL.glScalef(1.0, -1.0, 1.0)
+
+            # Enable clipping to avoid rendering below the floor
+            GL.glEnable(GL.GL_CLIP_PLANE0)
+            clipping_plane = [0.0, 1.0, 0.0, 0.0]  # Clipping plane: y >= 0
+            GL.glClipPlane(GL.GL_CLIP_PLANE0, clipping_plane)
             objs = self.camera.GetObjectsInView(self._objects)
+            self.draw_scene(objs)
+            GL.glDisable(GL.GL_CLIP_PLANE0)
+            GL.glPopMatrix()
 
-            for obj in objs:
-                for renderer in obj.triangles:
-                    renderer()
-
+            GL.glPushMatrix()
+            objs = self.camera.GetObjectsInView(self._objects)
             self.DrawGrid()
+            self.draw_scene(objs)
             # self._render_bounding_boxes()
             GL.glPopMatrix()
 

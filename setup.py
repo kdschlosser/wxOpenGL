@@ -117,6 +117,7 @@ setup(
         "pyfqmr==0.5.0",
         "scipy==1.17.0",
         "wxPython==4.2.4",
+        "pillow",
         "pyassimp @ file:///" + os.path.join(base_path, 'libs/assimp/port/PyAssimp')
     ],
     classifiers=[

@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 
 from .geometry import point as _point
-
+from . import debug as _debug
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 class DragObject:
 
     def __init__(self, canvas: "_canvas.Canvas", selected: "_base3d.Base3D"):
-
         self.canvas = canvas
         self.selected = selected
 
@@ -20,69 +19,48 @@ class DragObject:
         self.last_pos = selected.position.copy()
         self.axis_lock = _point.Point(0, 0, 0)
 
-    # def move(self, candidate: _point.Point,
-    #          start_pos: _point.Point, last_pos: _point.Point):
-    #
-    #     # if self._x_arrow.is_selected:
-    #     #     new_pos = _point.Point(candidate.x, start_pos.y, start_pos.z)
-    #     # elif self._y_arrow.is_selected:
-    #     #     new_pos = _point.Point(start_pos.x, candidate.y, start_pos.z)
-    #     # elif self._z_arrow.is_selected:
-    #     #     new_pos = _point.Point(start_pos.x, start_pos.y, candidate.z)
-    #     # else:
-    #     #     return
-    #
-    #         # compute incremental delta to move things (arrows and object)
-    #     delta = candidate - last_pos
-    #
-    #     position = self._position
-    #     position += delta
-    #
-    #     return new_pos
+        self.pick_offset = None
 
+    @_debug.logfunc
     def __call__(self, delta):
-        # project center to screen
+        # Step 1: Project object position to screen space
         anchor_screen = self.canvas.camera.ProjectPoint(self.selected.position)
+        # Step 2: Use object's anchor_screen.z as the depth reference
+        depth = anchor_screen.z  # Preserve screen depth for unprojecting screen_new
 
-        # compute pick-world and offsets
-        pick_world = self.canvas.camera.UnprojectPoint(anchor_screen)
-        pick_offset = self.selected.position - pick_world
-
-        # compute new anchor screen position (top-left coords)
+        # Step 3: Compute new screen position with delta (mouse movement)
         screen_new = anchor_screen + delta
+        screen_new.z = depth  # Ensure consistent depth
 
-        # Unproject at anchor winZ (note our unproject_point expects top-left coords)
+        # Step 4: Unproject the screen position back to world space
         world_hit = self.canvas.camera.UnprojectPoint(screen_new)
 
-        world_hit += pick_offset
-        delta = world_hit - self.last_pos
+        # Step 5: Apply offset to maintain object position relative to pick point
+        pick_world = self.canvas.camera.UnprojectPoint(anchor_screen)
 
-        print('world_hit:', world_hit)
-        print('delta:', delta)
+        if self.pick_offset is None:
+            self.pick_offset = self.selected.position - pick_world
 
+        world_hit += self.pick_offset
+
+        # Step 6: Calculate delta in world space
+        delta3d = world_hit - self.last_pos
+
+        # Step 7: Determine the dominant axis to lock movement (axis_lock)
         if tuple(self.axis_lock) == (0.0, 0.0, 0.0):
-            if delta.z <= delta.x >= delta.y:
-                self.axis_lock.x = 1.0
-            elif delta.x <= delta.y >= delta.z:
-                self.axis_lock.y = 1.0
-            elif delta.x <= delta.z >= delta.y:
-                self.axis_lock.z = 1.0
-            else:
-                print(world_hit)
-                print(delta)
-                raise RuntimeError
+            axis_values = {'x': abs(delta3d.x), 'y': abs(delta3d.y), 'z': abs(delta3d.z)}
+            dominant_axis = max(axis_values, key=axis_values.get)
+            setattr(self.axis_lock, dominant_axis, 1.0)
 
-        delta.x *= self.axis_lock.x
-        delta.y *= self.axis_lock.y
-        delta.z *= self.axis_lock.z
+        # Step 8: Apply axis locking
+        delta3d *= self.axis_lock
 
-        print('delta:', delta)
-
+        # Step 9: Update the object's position
         position = self.selected.position
-        print('position:', position)
-        position += delta
-        print('position:', position)
-        print()
 
-        # new_pos = self.owner.move(candidate, self.start_obj_pos, self.last_pos)
-        self.last_pos = world_hit
+        position += delta3d
+
+        # Step 10: Update the last position for the next drag
+        self.last_pos = position.copy()
+
+

@@ -96,6 +96,7 @@ class Canvas(wx.Panel):
         self._canvas = _canvas.Canvas(self._panel, size=view_size.as_int[:-1], pos=(0, 0))
 
         self.Bind(wx.EVT_ERASE_BACKGROUND, self._on_erase_background)
+
         # self.Bind(wx.EVT_SIZE, self._on_size)
 
     @staticmethod
@@ -119,7 +120,7 @@ class Canvas(wx.Panel):
         if self._ref_count:
             return
 
-        self._canvas.Refresh(self, *args, **kwargs)
+        self._canvas.Refresh(*args, **kwargs)
 
     def Truck(self, delta) -> None:
         self._canvas.TruckPedestal(delta, 0.0)

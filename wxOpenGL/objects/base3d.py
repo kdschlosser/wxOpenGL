@@ -7,6 +7,7 @@ from ..geometry import point as _point
 from ..geometry import angle as _angle
 from .. import config as _config
 from .. import gl_materials as _glm
+from .. import debug as _debug
 
 if TYPE_CHECKING:
     from .. import Canvas as _Canvas
@@ -16,6 +17,7 @@ Config = _config.Config
 
 class Base3D:
 
+    @_debug.logfunc
     def __init__(self, canvas: "_Canvas", material: _glm.GLMaterial,
                  selected_material: _glm.GLMaterial, smooth: bool,
                  data: list[list[np.ndarray, np.ndarray]],
@@ -66,6 +68,7 @@ class Base3D:
         self._smooth = value
         self._build()
 
+    @_debug.logfunc
     def _build(self):
         from .. import model_loader as _model_loader
 
@@ -110,6 +113,10 @@ class Base3D:
 
         self._triangles = [TriangleRenderer(triangles, material)]
 
+        for p1, p2 in rect:
+            if p1.y < Config.ground_height:
+                self.position.y -= p1.y
+
     @property
     def vertices_count(self) -> int:
         res = 0
@@ -120,6 +127,7 @@ class Base3D:
 
         return res
 
+    @_debug.logfunc
     def reduce_mesh(self, target_vertice_count: int | None,
                     agressiveness: float = 4.5):
 
@@ -131,9 +139,19 @@ class Base3D:
         self._build()
         self.canvas.Refresh()
 
+    @_debug.logfunc
     def _update_position(self, point: _point.Point):
         delta = point - self._o_position
         self._o_position = point.copy()
+
+        for p1, p2 in self._rect:
+            if p1.y + delta.y < Config.ground_height:
+                self._position.y -= p1.y
+                return
+
+            if p2.y + delta.y < Config.ground_height:
+                self._position.y -= p2.y
+                return
 
         for renderer in self._triangles:
             data = renderer.data
@@ -155,6 +173,7 @@ class Base3D:
 
         self.canvas.Refresh(False)
 
+    @_debug.logfunc
     def _update_angle(self, angle: _angle.Angle):
         delta = angle - self._o_angle
         self._o_angle = angle.copy()
@@ -251,6 +270,7 @@ class Base3D:
     # compute_vertex_normals: 4.0ms
     # compute_smoothed_vertex_normals: 9.0ms
     @staticmethod
+    @_debug.logfunc
     def _compute_smoothed_vertex_normals(vertices, faces):
         # triangle coordinates (F, 3, 3)
         triangles = vertices[faces]
@@ -302,6 +322,7 @@ class Base3D:
         return triangles, normals, len(triangles) * 3
 
     @staticmethod
+    @_debug.logfunc
     def _compute_vertex_normals(vertices, faces):
         triangles = vertices[faces]  # (F, 3, 3)
         v0 = triangles[:, 0, :]
@@ -327,6 +348,7 @@ class Base3D:
         return triangles, normals.reshape(-1, 3), len(triangles) * 3
 
     @staticmethod
+    @_debug.logfunc
     def _compute_bb(p1, p2):
         x1, y1, z1 = p1.as_float
         x2, y2, z2 = p2.as_float
@@ -340,6 +362,7 @@ class Base3D:
         return corners
 
     @staticmethod
+    @_debug.logfunc
     def _compute_rect(tris):
         verts = tris.reshape(-1, 3)
 
@@ -385,6 +408,7 @@ class TriangleRenderer:
     def material(self, value: _glm.GLMaterial):
         self._material = value
 
+    @_debug.logfunc
     def __call__(self):
         GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
         GL.glEnableClientState(GL.GL_NORMAL_ARRAY)

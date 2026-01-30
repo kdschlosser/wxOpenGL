@@ -3,10 +3,11 @@ import wx
 from . import canvas as _canvas
 from . import dragging as _dragging
 from . import object_picker as _object_picker
-from . import free_rotate as _free_rotate
+from . import arcball as _arcball
 from .geometry import point as _point
 
 from . import config as _config
+from . import debug as _debug
 
 Config = _config.Config
 
@@ -79,7 +80,7 @@ class MouseHandler:
         self._drag_obj: _dragging.DragObject = None
         self.is_motion = False
         self.mouse_pos = None
-        self._free_rot: _free_rotate.FreeRotate = None
+        self._arcball: _arcball.Arcball = None
 
         canvas.Bind(wx.EVT_LEFT_UP, self.on_left_up)
         canvas.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
@@ -104,6 +105,7 @@ class MouseHandler:
         canvas.Bind(wx.EVT_MOTION, self.on_mouse_motion)
         canvas.Bind(wx.EVT_MOUSEWHEEL, self.on_mouse_wheel)
 
+    @_debug.logfunc
     def _process_mouse(self, code):
         for config, func in (
             (Config.walk, self.canvas.Walk),
@@ -131,6 +133,7 @@ class MouseHandler:
 
         return _do_nothing_func
 
+    @_debug.logfunc
     def on_left_down(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
@@ -152,6 +155,7 @@ class MouseHandler:
         if refresh:
             self.canvas.Refresh(False)
 
+    @_debug.logfunc
     def on_left_up(self, evt: wx.MouseEvent):
         refresh = False
 
@@ -214,6 +218,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_left_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
@@ -233,6 +238,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_middle_up(self, evt: wx.MouseEvent):
         refresh = False
 
@@ -257,6 +263,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_middle_down(self, evt: wx.MouseEvent):
         self.is_motion = False
         refresh = False
@@ -272,6 +279,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_middle_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
@@ -291,13 +299,14 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_right_up(self, evt: wx.MouseEvent):
         refresh = False
 
         with self.canvas:
             if self.is_motion:
-                if self._free_rot is not None:
-                    self._free_rot = None
+                if self._arcball is not None:
+                    self._arcball = None
                     refresh = True
             else:
                 x, y = evt.GetPosition()
@@ -305,7 +314,7 @@ class MouseHandler:
 
                 selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
 
-                if self._free_rot is None:
+                if self._arcball is None:
                     if selected:
                         event = GLObjectEvent(wxEVT_GL_OBJECT_RIGHT_CLICK)
                         event.SetId(self.canvas.GetId())
@@ -313,7 +322,7 @@ class MouseHandler:
                         event.SetGLObject(selected)
                         self.canvas.GetEventHandler().ProcessEvent(event)
                 else:
-                    self._free_rot = None
+                    self._arcball = None
                     refresh = True
 
         if self.canvas.HasCapture():
@@ -324,6 +333,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_right_down(self, evt: wx.MouseEvent):
         self.is_motion = False
         refresh = False
@@ -338,7 +348,7 @@ class MouseHandler:
 
         selected = _object_picker.find_object(mouse_pos, self.canvas._objects)
         if selected and self.canvas.selected == selected:
-            self._free_rot = _free_rotate.FreeRotate(self.canvas, selected, x, y)
+            self._arcball = _arcball.Arcball(self.canvas, selected)
             refresh = True
 
         if refresh:
@@ -346,6 +356,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_right_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
@@ -365,6 +376,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_mouse_wheel(self, evt: wx.MouseEvent):
         if evt.GetWheelRotation() > 0:
             delta = 1.0
@@ -376,6 +388,7 @@ class MouseHandler:
         self.canvas.Refresh(False)
         evt.Skip()
 
+    @_debug.logfunc
     def on_mouse_motion(self, evt: wx.MouseEvent):
         refresh = False
 
@@ -408,8 +421,8 @@ class MouseHandler:
                 if evt.RightIsDown():
                     self.is_motion = True
 
-                    if self._free_rot is not None:
-                        self._free_rot(x, y)
+                    if self._arcball is not None:
+                        self._arcball(mouse_pos)
                     else:
                         self._process_mouse(MOUSE_RIGHT)(*list(delta)[:-1])
 
@@ -430,6 +443,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_aux1_up(self, evt: wx.MouseEvent):
         refresh = False
 
@@ -454,6 +468,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_aux1_down(self, evt: wx.MouseEvent):
         self.is_motion = False
 
@@ -465,6 +480,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_aux1_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)
@@ -485,6 +501,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_aux2_up(self, evt: wx.MouseEvent):
         refresh = False
 
@@ -509,6 +526,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_aux2_down(self, evt: wx.MouseEvent):
         self.is_motion = False
 
@@ -520,6 +538,7 @@ class MouseHandler:
 
         evt.Skip()
 
+    @_debug.logfunc
     def on_aux2_dclick(self, evt: wx.MouseEvent):
         x, y = evt.GetPosition()
         mouse_pos = _point.Point(x, y)

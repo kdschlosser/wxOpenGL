@@ -15,12 +15,14 @@ from OCP.TopAbs import TopAbs_FACE
 from OCP.TopoDS import TopoDS
 
 from .errors import ModelLoadError
+from . import debug as _debug
 
 os.environ['PATH'] = os.path.dirname(__file__) + ';' + os.environ['PATH']
 
 import pyassimp  # NOQA
 
 
+@_debug.logfunc
 def _ocp_read_shape(shape):
 
     BRepMesh_IncrementalMesh(theShape=shape, theLinDeflection=0.001,
@@ -66,16 +68,17 @@ def _ocp_read_shape(shape):
     return vertices, faces
 
 
+@_debug.logfunc
 def _load_with_assimp(path):
-    scene = pyassimp.load(path, processing=pyassimp.postprocess.aiProcess_Triangulate |
-                                           pyassimp.postprocess.aiProcess_JoinIdenticalVertices)
+    flags = 0  # (pyassimp.postprocess.aiProcess_Triangulate |
+               # pyassimp.postprocess.aiProcess_JoinIdenticalVertices)
 
-    data = [[mesh.vertices.copy(), mesh.faces.copy()] for mesh in scene.meshes]
-    pyassimp.release(scene)
+    with pyassimp.load(path, processing=flags) as scene:
+        data = [[mesh.vertices.copy(), mesh.faces.copy()] for mesh in scene.meshes]
 
     return data
 
-
+@_debug.logfunc
 def _load_vrml(file):
     reader = Vrml_Provider()
     reader.ReadFile(file)
@@ -86,7 +89,7 @@ def _load_vrml(file):
 
     return [[vertices, faces]]
 
-
+@_debug.logfunc
 def _load_step(file):
     step_reader = STEPControl_Reader()
     step_reader.ReadFile(file)
@@ -97,7 +100,7 @@ def _load_step(file):
 
     return [[vertices, faces]]
 
-
+@_debug.logfunc
 def _load_iges(file):
     reader = IGESControl_Reader()
     reader.ReadFile(file)
@@ -109,6 +112,7 @@ def _load_iges(file):
     return [[vertices, faces]]
 
 
+@_debug.logfunc
 def load(file):
     if file.endswith('.vrml'):
         return _load_vrml(file)
@@ -123,6 +127,7 @@ def load(file):
             raise ModelLoadError from err
 
 
+@_debug.logfunc
 def reduce_triangles(verts: np.ndarray, faces: np.ndarray, target_count: int,
                      aggressiveness: float, update_rate: int = 1,
                      max_iterations: int = 150, lossless: bool = False,

@@ -184,7 +184,10 @@ import numpy as np
 from .geometry import point as _point
 from .geometry import angle as _angle
 from .geometry import line as _line
+
+from .wrappers.decimal import Decimal as _decimal
 from . import Config
+from . import debug as _debug
 
 
 if TYPE_CHECKING:
@@ -216,7 +219,7 @@ class Camera:
 
         self._position = _point.Point(0.0, Config.eye_height, 0.0)
 
-        self._eye = _point.Point(0.0, Config.eye_height + 0.5, 75.0)
+        self._eye = _point.Point(0.0, Config.eye_height + 25.0, 300.0)
 
         self._angle = _angle.Angle.from_points(self._position, self._eye)
 
@@ -229,6 +232,14 @@ class Camera:
         self._position.bind(self._update_camera)
         self._eye.bind(self._update_camera)
 
+    @property
+    def position(self):
+        return self._position
+
+    @property
+    def eye(self):
+        return self._eye
+
     def Reset(self):
         with self._position and self._eye:
             self._position.x = 0.0
@@ -236,19 +247,23 @@ class Camera:
             self._position.z = 0.0
 
             self._eye.x = 0.0
-            self._eye.y = Config.eye_height + 0.5
-            self._eye.z = 75.0
+            self._eye.y = Config.eye_height + 25.0
+            self._eye.z = 300
 
         self._update_camera(None)
 
     def _update_camera(self, _=None):
+        if self._eye.y < Config.ground_height + 0.05:
+            self._eye.y = Config.ground_height + 0.05
+            return
+
         if self._context.is_locked:
             self._is_dirty = True
         else:
             wx.CallAfter(self.canvas.Refresh, False)
 
     @property
-    def orthonormalized_axes(self):
+    def orthonormalized_axes(self):  # NOQA
         def normalize(v):
             v = np.array(v, dtype=float)
             n = np.linalg.norm(v)
@@ -260,6 +275,7 @@ class Camera:
         u = np.cross(r, f)  # camera up re-orthonormalized  # NOQA
         return f, r, u
 
+    @_debug.logfunc
     def GetObjectsInView(self, objs: list) -> list:
         if self._clip is None:
             self._is_dirty = True
@@ -294,6 +310,7 @@ class Camera:
         return ret
 
     @staticmethod
+    @_debug.logfunc
     def _aabb_in_frustum_planes(mn_xyz, mx_xyz, planes: np.ndarray) -> bool:
         """
         mn_xyz, mx_xyz: array-like shape (3,)
@@ -321,6 +338,7 @@ class Camera:
         return np.all((s + r) >= 0.0)
 
     @staticmethod
+    @_debug.logfunc
     def _extract_frustum_planes(view_proj: np.ndarray) -> np.ndarray:
         """
         Returns planes as an array shape (6,4): [A,B,C,D] per plane.
@@ -351,6 +369,7 @@ class Camera:
         return planes
 
     @staticmethod
+    @_debug.logfunc
     def _aabb_intersects_frustum(ht_rects: list, view_proj: np.ndarray) -> bool:
         """
         NO LONGER USED, KEEPING FOR LATER POSSIBLE USE
@@ -418,6 +437,7 @@ class Camera:
         GLU.gluLookAt(*camera)
         self._update_views()
 
+    @_debug.logfunc
     def _calculate_camera(self):
         eye = self._eye.as_numpy
         pos = self._position.as_numpy
@@ -472,6 +492,7 @@ class Camera:
 
         self._focal_distance = _line.Line(self._eye, self._position).length()
 
+    @_debug.logfunc
     def _update_views(self):
         if not self._is_dirty:
             return
@@ -485,6 +506,7 @@ class Camera:
             self._clip = (self._projection @ self._modelview).astype(np.float32)
             self._frustum_planes = self._extract_frustum_planes(self._clip)
 
+    @_debug.logfunc
     def Rotate(self, dx, dy):
         """
         Moves the camera position keeping the focused point locked.
@@ -494,6 +516,7 @@ class Camera:
         self._eye += eye - self._eye
 
     @staticmethod
+    @_debug.logfunc
     def _rotate_about(dx: int, dy: int, p1: _point.Point, p2: _point.Point) -> np.ndarray:
         """
         Moves the camera position keeping the focused point locked.
@@ -561,6 +584,7 @@ class Camera:
 
         return _point.Point(new_point[0], new_point[1], new_point[2])
 
+    @_debug.logfunc
     def PanTilt(self, dx, dy):
         """
         Moves the camera position keeping the focused point locked.
@@ -571,6 +595,7 @@ class Camera:
         position = self._rotate_about(dx, dy, self._position, self._eye)
         self._position += position - self._position
 
+    @_debug.logfunc
     def Zoom(self, delta, *_):
         """
         This has a similiar movement appearance as Dolly except there are hard
@@ -589,6 +614,7 @@ class Camera:
         self._is_dirty = True
         self._eye += move
 
+    @_debug.logfunc
     def Walk(self, dx, dy, speed):
         """
         This movement is a bit tricky to explain in terms of camera movement.
@@ -625,6 +651,7 @@ class Camera:
             self._eye += move
             self._position += move
 
+    @_debug.logfunc
     def TruckPedestal(self, dx, dy, speed):
         """
         this is as the function name states. It is a Truck (left right)
@@ -652,31 +679,76 @@ class Camera:
         self._is_dirty = True
         self._position += move
 
+    @_debug.logfunc
     def ProjectPoint(self, point: _point.Point) -> _point.Point:
-        """
-        Project a world-space _point.Point to window coordinates (top-left origin).
-        Returns (winx, winy_top, winz) where winz is in [0,1].
-        """
 
-        with self._context:
-            winx, winy, winz = GLU.gluProject(point.x, point.y, point.z,
-                                              self._modelview, self._projection, self._viewport)
+        # Step 1: Convert to homogeneous world position (4D vector)
+        # Add W=1 for homogeneous coords
+        world_point = np.array([point.x, point.y, point.z, 1.0])
 
-        # convert to top-left origin to match wx mouse coordinates
-        winy_top = self._viewport[3] - winy
-        return _point.Point(winx, winy_top, winz)
+        # Step 2: Transform to view space using the modelview matrix
+        view_point = np.dot(self._modelview, world_point)  # World space → View space
 
+        # Step 3: Transform to clip space using the projection matrix
+        clip_point = np.dot(self._projection, view_point)  # View space → Clip space
+
+        # Perspective division: Normalize by the W component
+        if clip_point[3] == 0.0:
+            raise ValueError("Perspective division failed (W=0 in clip space).")
+
+        # Normalize X, Y, Z by W in clip space
+        ndc_point = clip_point[:3] / clip_point[3]
+
+        # Step 4: Map from NDC [-1, 1] to screen space (viewport mapping)
+        # Map X
+        screen_x = (_decimal(self._viewport[0]) +
+                    ((_decimal(ndc_point[0]) + _decimal(1.0)) *
+                     _decimal(0.5) * _decimal(self._viewport[2])))
+
+        # Map Y
+        screen_y = (_decimal(self._viewport[1]) +
+                    ((_decimal(1.0) - _decimal(ndc_point[1])) *
+                     _decimal(0.5) * _decimal(self._viewport[3])))
+
+        # Map Z from [-1, 1] to [0, 1]
+        screen_z = (_decimal(ndc_point[2]) + _decimal(1.0)) * _decimal(0.5)
+
+        # Step 5: Return the screen-space coordinates
+        return _point.Point(screen_x, screen_y, screen_z)
+
+    @_debug.logfunc
     def UnprojectPoint(self, point: _point.Point) -> _point.Point:
-        """
-        Unproject window coordinates (top-left origin) and
-        winz back to a world _point.Point.
-        """
+        # Step 1: Map screen space [x, y, z] to normalized device coordinates (NDC)
+        ndc_x = ((_decimal(point.x) - _decimal(self._viewport[0])) /
+                 _decimal(self._viewport[2]) * _decimal(2.0) - _decimal(1.0))
 
-        with self._context:
-            # convert top-left y back to OpenGL bottom-left y
-            winy = self._viewport[3] - point.y
+        # ndc_y = ((_decimal(point.y) - _decimal(self._viewport[1])) /
+        #          _decimal(self._viewport[3]) * _decimal(2.0) - _decimal(1.0))
+        ndc_y = ((_decimal(self._viewport[3]) -
+                  _decimal(point.y) -
+                  _decimal(self._viewport[1])) /
+                 _decimal(self._viewport[3]) * _decimal(2.0) - _decimal(1.0))
 
-            x, y, z = GLU.gluUnProject(point.x, winy, point.z,
-                                       self._modelview, self._projection, self._viewport)
+        # Depth is mapped [0, 1] → [-1, 1]
+        ndc_z = _decimal(point.z) * _decimal(2.0) - _decimal(1.0)
+        # Homogeneous NDC
+        ndc_point = np.array([float(ndc_x), float(ndc_y), float(ndc_z), 1.0])
 
-        return _point.Point(x, y, z)
+        # Step 2: Compute the inverse of the projection * modelview matrix
+        # Combine projection and modelview
+        clip_matrix = np.dot(self._projection, self._modelview)
+
+        # Invert the combined matrix
+        inverse_clip_matrix = np.linalg.inv(clip_matrix)
+
+        # Step 3: Transform from NDC to clip space
+        clip_point = np.dot(inverse_clip_matrix, ndc_point)
+
+        # Step 4: Perspective division to get world-space coordinates
+        if clip_point[3] == 0.0:
+            raise ValueError("Perspective division failed (W=0 in clip space).")
+
+        # Normalize by W in homogeneous space
+        world_coords = clip_point[:3] / clip_point[3]
+        # Return unprojected world-space coordinates
+        return _point.Point(*world_coords)

@@ -16,7 +16,10 @@ import numpy as np
 from OpenGL.GL import *
 from math import inf
 
+from . import debug as _debug
 
+
+@_debug.logfunc
 def _gl_get_matrices():
     """
     Return
@@ -32,6 +35,7 @@ def _gl_get_matrices():
     return mv, pj, tuple(vp)
 
 
+@_debug.logfunc
 def _project_point_world(point, mv, pj, viewport):
     """
     Project world point to window coords. mv, pj are row-major 4x4 numpy arrays.
@@ -55,6 +59,7 @@ def _project_point_world(point, mv, pj, viewport):
     return winx, winy, winz, eye
 
 
+@_debug.logfunc
 def _unproject_from_ndc(ndc, inv_mvp):
     """
     ndc: (x,y,z) in [-1,1]
@@ -72,6 +77,7 @@ def _unproject_from_ndc(ndc, inv_mvp):
     return world[:3]
 
 
+@_debug.logfunc
 def _mouse_ray_from_screen(mx, my, mv=None, pj=None,
                            viewport=None, mouse_is_top_left=True):
     """
@@ -114,6 +120,7 @@ def _mouse_ray_from_screen(mx, my, mv=None, pj=None,
 
 
 # Ray vs AABB (slab method)
+@_debug.logfunc
 def _ray_intersect_aabb(orig, direc, aabb_min, aabb_max, t0=0.0, t1=inf):
     aabb_min = np.array(aabb_min, dtype=np.float64)
     aabb_max = np.array(aabb_max, dtype=np.float64)
@@ -136,6 +143,7 @@ def _ray_intersect_aabb(orig, direc, aabb_min, aabb_max, t0=0.0, t1=inf):
 
 
 # Ray-triangle Möller–Trumbore
+@_debug.logfunc
 def _ray_triangle_intersect(orig, dir, v0, v1, v2, eps=1e-9):  # NOQA
     edge1 = v1 - v0  # NOQA
     edge2 = v2 - v0
@@ -165,6 +173,7 @@ def _ray_triangle_intersect(orig, dir, v0, v1, v2, eps=1e-9):  # NOQA
     return False, None
 
 
+@_debug.logfunc
 def _aabb_screen_bbox_and_depth(bboxes, mv, pj,
                                 viewport, flip_y_for_ui=True):
     """
@@ -232,6 +241,7 @@ def _get_obj_translation_3(obj) -> np.ndarray | None:
     return obj.position.as_float
 
 
+@_debug.logfunc
 def _ray_to_local_space(orig_world, dir_world, R_obj, t_obj):
     """
     Transform a world-space ray into object-local space.
@@ -257,6 +267,7 @@ def _ray_to_local_space(orig_world, dir_world, R_obj, t_obj):
     return o_local, d_local
 
 
+@_debug.logfunc
 def _ray_intersect_obb_via_local_aabb(orig_world, dir_world, local_min,
                                       local_max, R_obj, t_obj):
     """
@@ -275,6 +286,7 @@ last_pick_state = {
 }
 
 
+@_debug.logfunc
 def _pick_candidates_at_mouse(mx, my, scene_objects, mv=None, pj=None, viewport=None,
                              mouse_is_top_left=True, tol_pixels=3.0, max_candidates=128):  # NOQA
     """
@@ -308,6 +320,7 @@ def _pick_candidates_at_mouse(mx, my, scene_objects, mv=None, pj=None, viewport=
     return candidates[:max_candidates]
 
 
+@_debug.logfunc
 def find_object(mouse_pos, scene_objects):
     mx, my = mouse_pos.as_float[:-1]
 

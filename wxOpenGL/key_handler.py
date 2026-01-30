@@ -3,6 +3,7 @@ import threading
 
 from . import canvas as _canvas
 from . import config as _config
+from . import debug as _debug
 
 Config = _config.Config
 
@@ -158,6 +159,7 @@ class KeyHandler:
 
             self._key_event.wait(0.05)
 
+    @_debug.logfunc
     def _on_key_up(self, evt: wx.KeyEvent):
         keycode = evt.GetKeyCode()
         evt.Skip()
@@ -209,6 +211,7 @@ class KeyHandler:
             remove_from_queue(self._process_zoom_key, key)
             return
 
+    @_debug.logfunc
     def _on_key_down(self, evt: wx.KeyEvent):
         keycode = evt.GetKeyCode()
         evt.Skip()
@@ -262,6 +265,7 @@ class KeyHandler:
             self._process_reset_key(key)
             return
 
+    @_debug.logfunc
     def _process_rotate_key(self, factor, *keys):
         dx = 0.0
         dy = 0.0
@@ -278,6 +282,7 @@ class KeyHandler:
 
         self.canvas.Rotate(dx * factor, dy * factor)
 
+    @_debug.logfunc
     def _process_pan_tilt_key(self, factor, *keys):
         dx = 0.0
         dy = 0.0
@@ -294,6 +299,7 @@ class KeyHandler:
 
         self.canvas.PanTilt(dx * factor, dy * factor)
 
+    @_debug.logfunc
     def _process_truck_pedestal_key(self, factor, *keys):
         dx = 0.0
         dy = 0.0
@@ -310,6 +316,7 @@ class KeyHandler:
 
         self.canvas.TruckPedestal(dx * factor, dy * factor)
 
+    @_debug.logfunc
     def _process_walk_key(self, factor, *keys):
         dx = 0.0
         dy = 0.0
@@ -326,6 +333,7 @@ class KeyHandler:
 
         self.canvas.Walk(dx * factor, dy * factor)
 
+    @_debug.logfunc
     def _process_zoom_key(self, factor, *keys):
         delta = 0.0
 
@@ -337,5 +345,6 @@ class KeyHandler:
 
         self.canvas.Zoom(delta * factor, None)
 
+    @_debug.logfunc
     def _process_reset_key(self, *_):
         self.canvas.camera.Reset()
