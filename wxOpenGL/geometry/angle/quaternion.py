@@ -50,7 +50,7 @@ class Quaternion:
         if not isinstance(other, Quaternion):
             raise TypeError
 
-        return self.__mul(other, -self)
+        return self.__mul(-other, self)
 
     @staticmethod
     def __mul(qa: "Quaternion", qb: "Quaternion") -> "Quaternion":
@@ -159,7 +159,7 @@ class Quaternion:
         yaw = np.arctan2(float(r02), float(r22))
         roll = np.arctan2(float(r10), float(r11))
 
-        return tuple(np.rad2deg([pitch, yaw, roll]))
+        return tuple(float(item) for item in np.rad2deg([pitch, yaw, roll]))
 
     @property
     def as_matrix(self) -> np.ndarray:

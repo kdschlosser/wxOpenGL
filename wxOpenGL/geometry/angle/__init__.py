@@ -14,6 +14,12 @@ TWO = _decimal(2.0)
 class Angle:
 
     def __array_ufunc__(self, func, method, inputs, instance, **kwargs):  # NOQA
+        # print('angle func:', func)
+        # print('angle method:', method)
+        # print('angle inputs:', inputs)
+        # print('angle instance:', instance)
+        # print()
+
         if func == np.matmul:
             if isinstance(instance, np.ndarray):
                 if instance.shape == (4,):
@@ -28,7 +34,13 @@ class Angle:
 
                 return self
             else:
-                return inputs @ self._q.as_matrix.T
+                # print()
+                # print('QUAT:', self._q.as_numpy)
+                # print('EULER:', self._q.as_euler)
+                # print('MATRIX:', self._q.as_matrix)
+                # print('TRANSFORM MATRIX:', self._q.as_matrix.T)
+                # print()
+                return inputs @ self._q.as_matrix
 
         if func == np.add:
             if isinstance(instance, np.ndarray):
@@ -326,7 +338,8 @@ class Angle:
         return iter([x, y, z])
 
     def __str__(self) -> str:
-        x, y, z = self.as_float
+        x, y, z = self._q.as_euler
+
         return f'X: {x}, Y: {y}, Z: {z}'
 
     @classmethod

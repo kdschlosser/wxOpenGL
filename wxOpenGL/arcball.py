@@ -9,6 +9,10 @@ if TYPE_CHECKING:
     from .objects import base3d as _base3d
 
 
+# TODO: drag rotation is not working. the angles are not being calculated
+#       correctly. This will need to be fixed.
+
+
 class Arcball:
     def __init__(self, canvas: "_canvas.Canvas", selected: "_base3d.Base3D"):
         self.canvas = canvas
@@ -33,30 +37,32 @@ class Arcball:
         self.canvas.set_angle_overlay(None, None, None)
 
     def _get_screen_rect(self):
-        min_x = 999999
-        max_x = -999999
-        min_y = 999999
-        max_y = -999999
-        min_z = 999999
-        max_z = -999999
+        # min_x = 999999
+        # max_x = -999999
+        # min_y = 999999
+        # max_y = -999999
+        # min_z = 999999
+        # max_z = -999999
+        #
+        # for rect in self.selected.rect:
+        #     for p in rect:
+        #         min_x = min(min_x, p.x)
+        #         max_x = max(max_x, p.x)
+        #         min_y = min(min_y, p.y)
+        #         max_y = max(max_y, p.y)
+        #         min_z = min(min_z, p.y)
+        #         max_z = max(max_z, p.y)
+        #
+        # min_point = _point.Point(min_x, min_y, min_z)
+        # max_point = _point.Point(max_x, max_y, max_z)
+        #
+        # min_screen_point = self.canvas.camera.ProjectPoint(min_point)
+        # max_screen_point = self.canvas.camera.ProjectPoint(max_point)
+        #
+        # width = max_screen_point.x - min_screen_point.x
+        # height = max_screen_point.y - min_screen_point.y
 
-        for rect in self.selected.rect:
-            for p in rect:
-                min_x = min(min_x, p.x)
-                max_x = max(max_x, p.x)
-                min_y = min(min_y, p.y)
-                max_y = max(max_y, p.y)
-                min_z = min(min_z, p.y)
-                max_z = max(max_z, p.y)
-
-        min_point = _point.Point(min_x, min_y, min_z)
-        max_point = _point.Point(max_x, max_y, max_z)
-
-        min_screen_point = self.canvas.camera.ProjectPoint(min_point)
-        max_screen_point = self.canvas.camera.ProjectPoint(max_point)
-
-        width = max_screen_point.x - min_screen_point.x
-        height = max_screen_point.y - min_screen_point.y
+        width, height = self.canvas.GetParent().GetParent().GetSize()
         return width, height
 
     def map_to_sphere(self, mouse_pos: _point.Point) -> np.ndarray:
@@ -111,10 +117,17 @@ class Arcball:
             self.rotation_matrix = np.dot(rotation_matrix, self.rotation_matrix)
 
             self.canvas.set_angle_overlay(*self._get_euler_angles())
+
             r_angle = _angle.Angle.from_matrix(self.rotation_matrix[0:3, 0:-1])
+            print('set_angle:', r_angle)
             angle = self.selected.angle
+            print('old_angle:', angle)
+
             diff = r_angle - angle
+            print('angle_diff:', diff)
             angle += diff
+            print('new_angle:', angle)
+            print()
 
         # Update starting vector for next rotation
         self.start_vector = current_vector

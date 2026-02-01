@@ -329,7 +329,7 @@ class Config(metaclass=_Config):
     class debug(metaclass=_Config):
         log_args = True
         call_duration = True
-        bypass = False
+        bypass = True
 
     class headlight(metaclass=_Config):
         turn_on = True

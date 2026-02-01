@@ -6,7 +6,7 @@ import time
 material = wxOpenGL.PlasticMaterial([0.4, 0.4, 0.4, 1.0])
 selected_material = wxOpenGL.PlasticMaterial([1.0, 0.5, 0.5, 1.0])
 point = wxOpenGL.Point(0, 0, 0)
-angle = wxOpenGL.Angle.from_euler(0.0, 0, 0)
+angle = wxOpenGL.Angle.from_euler(90.0, 0, 0)
 
 selected_material.x_ray = True
 
