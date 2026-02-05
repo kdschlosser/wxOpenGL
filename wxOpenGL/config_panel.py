@@ -43,9 +43,7 @@ def HSizer(parent, label, ctrl) -> wx.BoxSizer:
 class HeadlightTab(scrolledpanel.ScrolledPanel):
 
     def __init__(self, parent):
-
         scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
-        self.SetupScrolling()
 
         enable = Config.headlight.turn_on
 
@@ -85,7 +83,9 @@ class HeadlightTab(scrolledpanel.ScrolledPanel):
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(vsizer, 0, wx.ALL, 10)
+
         self.SetSizerAndFit(hsizer)
+        self.SetupScrolling()
 
     def on_enable(self, evt):
         value = self.enable.GetValue()
@@ -130,9 +130,7 @@ class HeadlightTab(scrolledpanel.ScrolledPanel):
 class DebugTab(scrolledpanel.ScrolledPanel):
 
     def __init__(self, parent):
-
         scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
-        self.SetupScrolling()
 
         enable = Config.debug.bypass
 
@@ -162,7 +160,9 @@ class DebugTab(scrolledpanel.ScrolledPanel):
 
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(vsizer, 0, wx.ALL, 10)
+
         self.SetSizerAndFit(hsizer)
+        self.SetupScrolling()
 
     def on_enable(self, evt):
         value = self.enable.GetValue()
@@ -437,13 +437,13 @@ class KeyCtrl(wx.Panel):
             raise ValueError
 
         self.ctrl = wx.TextCtrl(self, wx.ID_ANY, value=value, size=(150, -1))
+        self.ctrl.Bind(wx.EVT_CHAR_HOOK, self.on_text)
+
         hsizer = HSizer(self, label, self.ctrl)
         vsizer = wx.BoxSizer(wx.VERTICAL)
         vsizer.Add(hsizer, 0, wx.EXPAND)
 
         self.SetSizer(vsizer)
-
-        self.ctrl.Bind(wx.EVT_CHAR_HOOK, self.on_text)
 
     def Bind(self, *args, **kwargs):
         self.ctrl.Bind(*args, **kwargs)
@@ -478,19 +478,18 @@ class KeyCtrl(wx.Panel):
 class ResetTab(scrolledpanel.ScrolledPanel):
 
     def __init__(self, parent):
-
         scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
 
         self.mouse = MouseButtonCtrl(self, Config.reset)
         self.key = KeyCtrl(self, 'Key:', Config.reset.key)
+        self.key.Bind(wx.EVT_KEY_DOWN, self.on_key)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.mouse, 0)
         sizer.Add(self.key, 0)
 
         self.SetSizer(sizer)
-
-        self.key.Bind(wx.EVT_KEY_DOWN, self.on_key)
+        self.SetupScrolling()
 
     @staticmethod
     def on_key(evt: wx.KeyEvent):
@@ -501,16 +500,21 @@ class ResetTab(scrolledpanel.ScrolledPanel):
 class ZoomTab(scrolledpanel.ScrolledPanel):
 
     def __init__(self, parent):
-
         scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
 
         self.mouse = MouseButtonCtrl(self, Config.zoom)
         self.in_key = KeyCtrl(self, 'Zoom In Key:', Config.zoom.in_key)
+        self.in_key.Bind(wx.EVT_KEY_DOWN, self.on_in_key)
+
         self.out_key = KeyCtrl(self, 'Zoom Out Key:', Config.zoom.out_key)
+        self.out_key.Bind(wx.EVT_KEY_DOWN, self.on_out_key)
+
         self.sensitivity = wx.SpinCtrlDouble(self, wx.ID_ANY,
                                              value=str(round(Config.zoom.sensitivity, 1)),
                                              min=0.1, max=50.0, inc=0.1,
-                                             initial=round(Config.zoom.sensitivity, 2))
+                                             initial=round(Config.zoom.sensitivity, 1))
+
+        self.sensitivity.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_sensitivity)
 
         sens_sizer = HSizer(self, 'Sensitivity:', self.sensitivity)
 
@@ -521,10 +525,7 @@ class ZoomTab(scrolledpanel.ScrolledPanel):
         sizer.Add(sens_sizer, 0, wx.ALL | 5)
 
         self.SetSizer(sizer)
-
-        self.in_key.Bind(wx.EVT_KEY_DOWN, self.on_in_key)
-        self.out_key.Bind(wx.EVT_KEY_DOWN, self.on_out_key)
-        self.sensitivity.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_sensitivity)
+        self.SetupScrolling()
 
     def on_sensitivity(self, evt):
         Config.zoom.sensitivity = self.sensitivity.GetValue()
@@ -544,24 +545,34 @@ class ZoomTab(scrolledpanel.ScrolledPanel):
 class WalkTab(scrolledpanel.ScrolledPanel):
 
     def __init__(self, parent):
-
         scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
 
         self.mouse = MouseButtonCtrl(self, Config.walk)
         self.forward_key = KeyCtrl(self, 'Forward Key:', Config.walk.forward_key)
+        self.forward_key.Bind(wx.EVT_KEY_DOWN, self.on_forward_key)
+
         self.backward_key = KeyCtrl(self, 'Backward Key:', Config.walk.backward_key)
+        self.backward_key.Bind(wx.EVT_KEY_DOWN, self.on_backward_key)
+
         self.left_key = KeyCtrl(self, 'Left Key:', Config.walk.left_key)
+        self.left_key.Bind(wx.EVT_KEY_DOWN, self.on_left_key)
+
         self.right_key = KeyCtrl(self, 'Right Key:', Config.walk.right_key)
+        self.right_key.Bind(wx.EVT_KEY_DOWN, self.on_right_key)
 
         self.sensitivity = wx.SpinCtrlDouble(self, wx.ID_ANY,
                                              value=str(round(Config.walk.sensitivity, 1)),
                                              min=0.1, max=50.0, inc=0.1,
-                                             initial=round(Config.walk.sensitivity, 2))
+                                             initial=round(Config.walk.sensitivity, 1))
+
+        self.sensitivity.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_sensitivity)
 
         self.speed = wx.SpinCtrlDouble(self, wx.ID_ANY,
                                        value=str(round(Config.walk.speed, 1)),
                                        min=0.1, max=50.0, inc=0.1,
-                                       initial=round(Config.walk.speed, 2))
+                                       initial=round(Config.walk.speed, 1))
+
+        self.speed.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_speed)
 
         sens_sizer = HSizer(self, 'Sensitivity:', self.sensitivity)
         speed_sizer = HSizer(self, 'Speed:', self.sensitivity)
@@ -574,15 +585,9 @@ class WalkTab(scrolledpanel.ScrolledPanel):
         sizer.Add(self.right_key, 0, wx.ALL | 5)
         sizer.Add(sens_sizer, 0, wx.ALL | 5)
         sizer.Add(speed_sizer, 0, wx.ALL | 5)
+
         self.SetSizer(sizer)
-
-        self.forward_key.Bind(wx.EVT_KEY_DOWN, self.on_forward_key)
-        self.backward_key.Bind(wx.EVT_KEY_DOWN, self.on_backward_key)
-        self.left_key.Bind(wx.EVT_KEY_DOWN, self.on_left_key)
-        self.right_key.Bind(wx.EVT_KEY_DOWN, self.on_right_key)
-
-        self.sensitivity.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_sensitivity)
-        self.speed.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_speed)
+        self.SetupScrolling()
 
     def on_sensitivity(self, evt):
         Config.walk.sensitivity = self.sensitivity.GetValue()
@@ -616,19 +621,27 @@ class WalkTab(scrolledpanel.ScrolledPanel):
 class TruckPedestalTab(scrolledpanel.ScrolledPanel):
 
     def __init__(self, parent):
-
         scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
 
         self.mouse = MouseButtonCtrl(self, Config.truck_pedestal)
         self.up_key = KeyCtrl(self, 'Up Key:', Config.truck_pedestal.up_key)
+        self.up_key.Bind(wx.EVT_KEY_DOWN, self.on_up_key)
+
         self.down_key = KeyCtrl(self, 'Down Key:', Config.truck_pedestal.down_key)
+        self.down_key.Bind(wx.EVT_KEY_DOWN, self.on_down_key)
+
         self.left_key = KeyCtrl(self, 'Left Key:', Config.truck_pedestal.left_key)
+        self.left_key.Bind(wx.EVT_KEY_DOWN, self.on_left_key)
+
         self.right_key = KeyCtrl(self, 'Right Key:', Config.truck_pedestal.right_key)
+        self.right_key.Bind(wx.EVT_KEY_DOWN, self.on_right_key)
 
         self.sensitivity = wx.SpinCtrlDouble(self, wx.ID_ANY,
                                              value=str(round(Config.truck_pedestal.sensitivity, 1)),
                                              min=0.1, max=50.0, inc=0.1,
-                                             initial=round(Config.truck_pedestal.sensitivity, 2))
+                                             initial=round(Config.truck_pedestal.sensitivity, 1))
+
+        self.sensitivity.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_sensitivity)
 
         sens_sizer = HSizer(self, 'Sensitivity:', self.sensitivity)
 
@@ -639,14 +652,9 @@ class TruckPedestalTab(scrolledpanel.ScrolledPanel):
         sizer.Add(self.left_key, 0, wx.ALL | 5)
         sizer.Add(self.right_key, 0, wx.ALL | 5)
         sizer.Add(sens_sizer, 0, wx.ALL | 5)
+
         self.SetSizer(sizer)
-
-        self.up_key.Bind(wx.EVT_KEY_DOWN, self.on_up_key)
-        self.down_key.Bind(wx.EVT_KEY_DOWN, self.on_down_key)
-        self.left_key.Bind(wx.EVT_KEY_DOWN, self.on_left_key)
-        self.right_key.Bind(wx.EVT_KEY_DOWN, self.on_right_key)
-
-        self.sensitivity.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_sensitivity)
+        self.SetupScrolling()
 
     def on_sensitivity(self, evt):
         Config.truck_pedestal.sensitivity = self.sensitivity.GetValue()
@@ -676,19 +684,27 @@ class TruckPedestalTab(scrolledpanel.ScrolledPanel):
 class PanTiltTab(scrolledpanel.ScrolledPanel):
 
     def __init__(self, parent):
-
         scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
 
         self.mouse = MouseButtonCtrl(self, Config.pan_tilt)
         self.up_key = KeyCtrl(self, 'Up Key:', Config.pan_tilt.up_key)
+        self.up_key.Bind(wx.EVT_KEY_DOWN, self.on_up_key)
+
         self.down_key = KeyCtrl(self, 'Down Key:', Config.pan_tilt.down_key)
+        self.down_key.Bind(wx.EVT_KEY_DOWN, self.on_down_key)
+
         self.left_key = KeyCtrl(self, 'Left Key:', Config.pan_tilt.left_key)
+        self.left_key.Bind(wx.EVT_KEY_DOWN, self.on_left_key)
+
         self.right_key = KeyCtrl(self, 'Right Key:', Config.pan_tilt.right_key)
+        self.right_key.Bind(wx.EVT_KEY_DOWN, self.on_right_key)
 
         self.sensitivity = wx.SpinCtrlDouble(self, wx.ID_ANY,
                                              value=str(round(Config.pan_tilt.sensitivity, 1)),
                                              min=0.1, max=50.0, inc=0.1,
-                                             initial=round(Config.pan_tilt.sensitivity, 2))
+                                             initial=round(Config.pan_tilt.sensitivity, ))
+
+        self.sensitivity.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_sensitivity)
 
         sens_sizer = HSizer(self, 'Sensitivity:', self.sensitivity)
 
@@ -699,14 +715,9 @@ class PanTiltTab(scrolledpanel.ScrolledPanel):
         sizer.Add(self.left_key, 0, wx.ALL | 5)
         sizer.Add(self.right_key, 0, wx.ALL | 5)
         sizer.Add(sens_sizer, 0, wx.ALL | 5)
+
         self.SetSizer(sizer)
-
-        self.up_key.Bind(wx.EVT_KEY_DOWN, self.on_up_key)
-        self.down_key.Bind(wx.EVT_KEY_DOWN, self.on_down_key)
-        self.left_key.Bind(wx.EVT_KEY_DOWN, self.on_left_key)
-        self.right_key.Bind(wx.EVT_KEY_DOWN, self.on_right_key)
-
-        self.sensitivity.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_sensitivity)
+        self.SetupScrolling()
 
     def on_sensitivity(self, evt):
         Config.pan_tilt.sensitivity = self.sensitivity.GetValue()
@@ -736,19 +747,27 @@ class PanTiltTab(scrolledpanel.ScrolledPanel):
 class RotateTab(scrolledpanel.ScrolledPanel):
 
     def __init__(self, parent):
-
         scrolledpanel.ScrolledPanel.__init__(self, parent, wx.ID_ANY, style=wx.BORDER_NONE)
 
         self.mouse = MouseButtonCtrl(self, Config.rotate)
         self.up_key = KeyCtrl(self, 'Up Key:', Config.rotate.up_key)
+        self.up_key.Bind(wx.EVT_KEY_DOWN, self.on_up_key)
+
         self.down_key = KeyCtrl(self, 'Down Key:', Config.rotate.down_key)
+        self.down_key.Bind(wx.EVT_KEY_DOWN, self.on_down_key)
+
         self.left_key = KeyCtrl(self, 'Left Key:', Config.rotate.left_key)
+        self.left_key.Bind(wx.EVT_KEY_DOWN, self.on_left_key)
+
         self.right_key = KeyCtrl(self, 'Right Key:', Config.rotate.right_key)
+        self.right_key.Bind(wx.EVT_KEY_DOWN, self.on_right_key)
 
         self.sensitivity = wx.SpinCtrlDouble(self, wx.ID_ANY,
                                              value=str(round(Config.rotate.sensitivity, 1)),
                                              min=0.1, max=50.0, inc=0.1,
-                                             initial=round(Config.rotate.sensitivity, 2))
+                                             initial=round(Config.rotate.sensitivity, 1))
+
+        self.sensitivity.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_sensitivity)
 
         sens_sizer = HSizer(self, 'Sensitivity:', self.sensitivity)
 
@@ -759,14 +778,9 @@ class RotateTab(scrolledpanel.ScrolledPanel):
         sizer.Add(self.left_key, 0, wx.ALL | 5)
         sizer.Add(self.right_key, 0, wx.ALL | 5)
         sizer.Add(sens_sizer, 0, wx.ALL | 5)
+
         self.SetSizer(sizer)
-
-        self.up_key.Bind(wx.EVT_KEY_DOWN, self.on_up_key)
-        self.down_key.Bind(wx.EVT_KEY_DOWN, self.on_down_key)
-        self.left_key.Bind(wx.EVT_KEY_DOWN, self.on_left_key)
-        self.right_key.Bind(wx.EVT_KEY_DOWN, self.on_right_key)
-
-        self.sensitivity.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_sensitivity)
+        self.SetupScrolling()
 
     def on_sensitivity(self, evt):
         Config.rotate.sensitivity = self.sensitivity.GetValue()
@@ -802,13 +816,19 @@ class KeyboardInputTab(scrolledpanel.ScrolledPanel):
             self, wx.ID_ANY, value=str(round(Config.keyboard_settings.max_speed_factor, 1)),
             min=0.1, max=50.0, inc=0.1, initial=round(Config.keyboard_settings.max_speed_factor, 1))
 
+        self.max_repeat_factor.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_max)
+
         self.min_repeat_factor = wx.SpinCtrlDouble(
             self, wx.ID_ANY, value=str(round(Config.keyboard_settings.start_speed_factor, 1)),
             min=0.1, max=50.0, inc=0.1, initial=round(Config.keyboard_settings.start_speed_factor, 1))
 
+        self.min_repeat_factor.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_min)
+
         self.repeat_increment = wx.SpinCtrlDouble(
             self, wx.ID_ANY, value=str(round(Config.keyboard_settings.speed_factor_increment, 1)),
             min=0.1, max=50.0, inc=0.1, initial=round(Config.keyboard_settings.speed_factor_increment, 1))
+
+        self.repeat_increment.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_inc)
 
         max_sizer = HSizer(self, 'Max Repeat Factor:', self.max_repeat_factor)
         min_sizer = HSizer(self, 'Min Repeat Factor:', self.min_repeat_factor)
@@ -820,10 +840,7 @@ class KeyboardInputTab(scrolledpanel.ScrolledPanel):
         sizer.Add(inc_sizer, 0, wx.ALL | 5)
 
         self.SetSizer(sizer)
-
-        self.max_repeat_factor.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_max)
-        self.min_repeat_factor.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_min)
-        self.repeat_increment.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_inc)
+        self.SetupScrolling()
 
     def on_min(self, evt):
         Config.keyboard_settings.start_speed_factor = self.min_repeat_factor.GetValue()
@@ -847,9 +864,13 @@ class VirtualCanvasTab(scrolledpanel.ScrolledPanel):
             self, wx.ID_ANY, value=str(Config.virtual_canvas.width),
             min=300, max=9999999, initial=Config.virtual_canvas.width)
 
+        self.width.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_width)
+
         self.height = wx.SpinCtrl(
             self, wx.ID_ANY, value=str(Config.virtual_canvas.height),
             min=200, max=9999999, initial=Config.virtual_canvas.height)
+
+        self.height.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_height)
 
         width_sizer = HSizer(self, 'Width:', self.width)
         height_sizer = HSizer(self, 'Height:', self.height)
@@ -859,9 +880,7 @@ class VirtualCanvasTab(scrolledpanel.ScrolledPanel):
         sizer.Add(height_sizer, 0, wx.ALL | 5)
 
         self.SetSizer(sizer)
-
-        self.width.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_width)
-        self.height.Bind(wx.EVT_SPINCTRLDOUBLE, self.on_height)
+        self.SetupScrolling()
 
     def on_width(self, evt):
         Config.virtual_canvas.width = self.width.GetValue()
@@ -944,6 +963,7 @@ class FloorTab(scrolledpanel.ScrolledPanel):
         sizer.Add(reflection_strength_sizer, 0, wx.ALL | 5)
 
         self.SetSizer(sizer)
+        self.SetupScrolling()
 
     def on_show_grid(self, evt):
         value = self.show_grid.GetValue()
@@ -1054,6 +1074,7 @@ class CameraTab(scrolledpanel.ScrolledPanel):
         sizer.Add(focal_color_sizer, 0, wx.ALL | 5)
 
         self.SetSizer(sizer)
+        self.SetupScrolling()
 
     def on_focal_target_visible(self, evt):
         value = self.focal_target_visible.GetValue()
